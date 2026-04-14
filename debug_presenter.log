@@ -1,0 +1,101 @@
+AnnotationExtractor creado
+AnnotationExtractor creado
+get_pnotes_for_page(0)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(1)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(2)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(3)
+page.first_annot = 'Text' annotation on page 3 of <samples/demo.pdf, doc# 1>
+Annot info: {'content': 'Hacer pausa y revisar si van copiando', 'name': 'Note', 'title': 'Presenter', 'creationDate': 'D:20260413185914\relax -0600', 'modDate': 'D:20260413185914\relax -0600', 'subject': 'note', 'id': ''}
+Resultados: ['Hacer pausa y revisar si van copiando']
+get_pnotes_for_page(2)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(1)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(0)
+page.first_annot = None
+Resultados: []
+AnnotationExtractor creado
+get_pnotes_for_page(0)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(1)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(2)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(3)
+page.first_annot = 'Text' annotation on page 3 of <samples/demo.pdf, doc# 1>
+Annot info: {'content': 'Hacer pausa y revisar si van copiando', 'name': 'Note', 'title': 'Presenter', 'creationDate': 'D:20260413185914\relax -0600', 'modDate': 'D:20260413185914\relax -0600', 'subject': 'note', 'id': ''}
+Resultados: ['Hacer pausa y revisar si van copiando']
+get_pnotes_for_page(4)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(5)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(6)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(7)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(8)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(9)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(10)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(11)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(12)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(13)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(14)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(15)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(16)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(17)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(18)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(19)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(20)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(21)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(22)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(23)
+page.first_annot = None
+Resultados: []
+get_pnotes_for_page(24)
+page.first_annot = None
+Resultados: []
