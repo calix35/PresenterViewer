@@ -5,13 +5,15 @@ from copy import deepcopy
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QAction, QKeyEvent, QKeySequence, QShortcut
+from PySide6.QtGui import QAction, QCursor, QKeyEvent, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
+    QCheckBox,
     QFileDialog,
     QHBoxLayout,
     QLabel,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QSplitter,
     QToolBar,
@@ -19,7 +21,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from presenter_viewer.config import LayoutConfig, load_layout_config, save_layout_config
+from presenter_viewer.config import (
+    PANEL_KEYS,
+    LayoutConfig,
+    load_layout_config,
+    save_layout_config,
+)
 from presenter_viewer.pdf.pdf_loader import PdfLoader
 from presenter_viewer.ui.projector_window import ProjectorWindow
 from presenter_viewer.ui.widgets.slide_view import SlideView
@@ -39,6 +46,7 @@ class PresenterWindow(QMainWindow):
         self.layout_config: LayoutConfig = load_layout_config()
         self.customize_mode = False
         self._applying_layout = False
+        self._updating_duplicates_checkbox = False
 
         self.is_black = False
         self.is_frozen = False
@@ -46,11 +54,15 @@ class PresenterWindow(QMainWindow):
         self.is_fullscreen = False
 
         self.show_help_bar = False
+        self.show_panel_role_labels = True
 
         self.projector_window: ProjectorWindow | None = None
 
         self.available_screens = []
         self.projector_screen_index: int | None = None
+
+        # Panel seleccionado (para shortcuts)
+        self.selected_panel_key: str | None = None
 
         # Herramientas / modos
         self.tool_mode = "normal"   # normal | pen | eraser | pointer | spotlight
@@ -86,24 +98,21 @@ class PresenterWindow(QMainWindow):
         self.clock_timer = QTimer(self)
         self.clock_timer.timeout.connect(self._on_clock_tick)
 
-        self.current_slide_view = SlideView()
-        self.next_slide_view = SlideView()
-        self.current_note_view = SlideView()
-        self.next_note_view = SlideView()
+        # Throttle para actualizaciones del proyector
+        self.projector_update_timer = QTimer(self)
+        self.projector_update_timer.setSingleShot(True)
+        self.projector_update_timer.timeout.connect(self._update_projector)
+
+        # Widgets de paneles
+        self.current_slide_view = SlideView()   # panel main_left
+        self.next_slide_view = SlideView()      # panel right_top
+        self.current_note_view = SlideView()    # panel right_middle
+        self.next_note_view = SlideView()       # panel right_bottom
 
         self.current_slide_view.set_fit_mode("contain")
         self.next_slide_view.set_fit_mode("contain")
         self.current_note_view.set_fit_mode("contain")
         self.next_note_view.set_fit_mode("contain")
-
-        self.current_slide_view.enable_interaction(True)
-        self.current_slide_view.set_mouse_callbacks(
-            on_press=self._on_current_slide_mouse_press,
-            on_move=self._on_current_slide_mouse_move,
-            on_release=self._on_current_slide_mouse_release,
-            on_hover=self._on_current_slide_mouse_hover,
-            on_right_click=self.clear_selection_only,
-        )
 
         self.pnote_bar = QLabel("pnote: sin contenido")
         self.pnote_bar.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
@@ -145,11 +154,16 @@ class PresenterWindow(QMainWindow):
             "background-color: #151515; color: #cfcfcf; padding: 6px;"
         )
 
+        self.allow_duplicates_checkbox = QCheckBox("Permitir duplicados")
+        self.allow_duplicates_checkbox.setChecked(self.layout_config.allow_duplicate_roles)
+        self.allow_duplicates_checkbox.toggled.connect(self._on_allow_duplicates_toggled)
+
         self.main_splitter: QSplitter | None = None
         self.right_splitter: QSplitter | None = None
         self.outer_splitter: QSplitter | None = None
 
         self._build_ui()
+        self._configure_active_slide_view()
         self._build_toolbar()
         self._build_shortcuts()
         self._update_current_tool_cursor()
@@ -164,10 +178,12 @@ class PresenterWindow(QMainWindow):
     def _build_help_text(self) -> str:
         return (
             "Atajos: ←/→ o Espacio navegar | 1 normal | 2 pointer | 3 pen | 4 eraser | 5 spotlight | "
-            "+/- tamaño | Z zoom | Esc salir zoom | X o clic derecho limpiar selección | "
+            "+/- tamaño | Z zoom | Esc salir zoom | X limpiar selección | L mostrar/ocultar etiquetas | "
             "C limpiar dibujo | D mostrar/ocultar dibujos | B black | F freeze | P pnote | "
             "T iniciar/pausar cronómetro | Shift+T reiniciar cronómetro | "
-            "W fullscreen | H ayuda | Shift+C customize | Ctrl/Cmd+M mover proyector | Ctrl/Cmd+R re-detectar pantallas"
+            "W fullscreen | H ayuda | Shift+C customize | Ctrl/Cmd+M mover proyector | Ctrl/Cmd+R re-detectar pantallas | Ctrl/Cmd+Q salir | "
+            "Ctrl/Cmd+1..4 seleccionar panel | Alt/Option+1..4 asignar contenido | "
+            "Clic derecho en panel: cambiar contenido"
         )
 
     def _update_help_bar_visibility(self) -> None:
@@ -176,6 +192,56 @@ class PresenterWindow(QMainWindow):
     def toggle_help_bar(self) -> None:
         self.show_help_bar = not self.show_help_bar
         self._update_help_bar_visibility()
+
+    def toggle_panel_role_labels(self) -> None:
+        self.show_panel_role_labels = not self.show_panel_role_labels
+        self._render_views()
+        self._update_mode_bar_for_state(
+            "Etiquetas visibles" if self.show_panel_role_labels else "Etiquetas ocultas"
+        )
+
+    def _get_panel_view(self, panel_key: str) -> SlideView:
+        mapping = {
+            "main_left": self.current_slide_view,
+            "right_top": self.next_slide_view,
+            "right_middle": self.current_note_view,
+            "right_bottom": self.next_note_view,
+        }
+        return mapping[panel_key]
+    
+    def select_panel(self, panel_key: str) -> None:
+        self.selected_panel_key = panel_key
+
+        # limpiar todos
+        for key in ["main_left", "right_top", "right_middle", "right_bottom"]:
+            view = self._get_panel_view(key)
+            view.set_panel_selected(False)
+
+        # marcar seleccionado
+        view = self._get_panel_view(panel_key)
+        view.set_panel_selected(True)
+
+        self._update_mode_bar_for_state(f"Panel seleccionado: {panel_key}")
+
+    def assign_to_selected_panel(self, role: str) -> None:
+        if self.selected_panel_key is None:
+            return
+
+        # cargar layout actual
+        layout = self.layout_config.panel_roles.copy()
+
+        if not self.layout_config.allow_duplicate_roles:
+            # evitar duplicados: swap automático
+            for k, v in layout.items():
+                if v == role:
+                    layout[k] = layout[self.selected_panel_key]
+
+        layout[self.selected_panel_key] = role
+        self.layout_config.panel_roles = layout
+        save_layout_config(self.layout_config)
+
+        self._render_views()
+        self._update_mode_bar_for_state(f"{role} → {self.selected_panel_key}")
 
     def _format_elapsed_time(self, total_seconds: int) -> str:
         hours = total_seconds // 3600
@@ -210,6 +276,193 @@ class PresenterWindow(QMainWindow):
         if not self.clock_timer.isActive():
             self.clock_timer.start(1000)
         self._update_mode_bar_for_state("Cronómetro reiniciado")
+    
+    def _schedule_projector_update(self, delay_ms: int = 16) -> None:
+        if not self.projector_update_timer.isActive():
+            self.projector_update_timer.start(delay_ms)
+
+    def _get_panel_widget(self, panel_key: str) -> SlideView:
+        mapping = {
+            "main_left": self.current_slide_view,
+            "right_top": self.next_slide_view,
+            "right_middle": self.current_note_view,
+            "right_bottom": self.next_note_view,
+        }
+        return mapping[panel_key]
+
+    def _get_panel_display_name(self, panel_key: str) -> str:
+        labels = {
+            "main_left": "Panel izquierdo grande",
+            "right_top": "Panel derecho superior",
+            "right_middle": "Panel derecho medio",
+            "right_bottom": "Panel derecho inferior",
+        }
+        return labels.get(panel_key, panel_key)
+
+    def _get_panel_role(self, panel_key: str) -> str:
+        return self.layout_config.panel_roles.get(panel_key, "slide_current")
+
+    def _get_panel_key_for_role(self, role: str) -> str | None:
+        for panel_key in PANEL_KEYS:
+            if self._get_panel_role(panel_key) == role:
+                return panel_key
+        return None
+
+    def _get_view_for_role(self, role: str) -> SlideView | None:
+        panel_key = self._get_panel_key_for_role(role)
+        if panel_key is None:
+            return None
+        return self._get_panel_widget(panel_key)
+
+    def _get_active_slide_view(self) -> SlideView:
+        return self._get_view_for_role("slide_current") or self.current_slide_view
+
+    def _panel_role_label(self, role: str) -> str:
+        labels = {
+            "slide_current": "Filmina actual",
+            "slide_next": "Filmina siguiente",
+            "notes_current": "Notas actuales",
+            "notes_next": "Notas siguientes",
+        }
+        return labels.get(role, role)
+
+    def _panel_role_color(self, role: str) -> str:
+        colors = {
+            "slide_current": "#ef4444",
+            "slide_next": "#f59e0b",
+            "notes_current": "#3b82f6",
+            "notes_next": "#a855f7",
+        }
+        return colors.get(role, "#6b7280")
+
+    def _show_panel_context_menu(self, panel_key: str) -> None:
+        menu = QMenu(self)
+
+        title_action = QAction(f"Cambiar contenido de: {self._get_panel_display_name(panel_key)}", self)
+        title_action.setEnabled(False)
+        menu.addAction(title_action)
+        menu.addSeparator()
+
+        current_role = self._get_panel_role(panel_key)
+        role_items = [
+            ("slide_current", "Filmina actual"),
+            ("slide_next", "Filmina siguiente"),
+            ("notes_current", "Notas actuales"),
+            ("notes_next", "Notas siguientes"),
+        ]
+
+        for role_value, label in role_items:
+            action = QAction(label, self)
+            action.setCheckable(True)
+            action.setChecked(current_role == role_value)
+            action.triggered.connect(
+                lambda checked=False, pk=panel_key, rv=role_value: self._assign_role_to_panel(pk, rv)
+            )
+            menu.addAction(action)
+
+        menu.exec(QCursor.pos())
+
+    def _assign_role_to_panel(self, panel_key: str, new_role: str) -> None:
+        current_role = self._get_panel_role(panel_key)
+        if current_role == new_role:
+            return
+
+        if self.layout_config.allow_duplicate_roles:
+            self.layout_config.panel_roles[panel_key] = new_role
+        else:
+            other_panel = self._get_panel_key_for_role(new_role)
+            if other_panel is not None and other_panel != panel_key:
+                self.layout_config.panel_roles[other_panel] = current_role
+            self.layout_config.panel_roles[panel_key] = new_role
+
+        save_layout_config(self.layout_config)
+
+        self._configure_active_slide_view()
+        self._clear_selection_state()
+        self.control_zoom_viewport_norm = None
+        self.projector_zoom_viewport_norm = None
+        self.overlay_pointer_pos_norm = None
+
+        self._render_views()
+        self._update_projector()
+        self._update_mode_bar_for_state(
+            f"{self._panel_role_label(new_role)} en {self._get_panel_display_name(panel_key)}"
+        )
+
+    def _on_allow_duplicates_toggled(self, checked: bool) -> None:
+        if self._updating_duplicates_checkbox:
+            return
+
+        self.layout_config.allow_duplicate_roles = checked
+        save_layout_config(self.layout_config)
+
+        self.layout_config = load_layout_config()
+
+        self._updating_duplicates_checkbox = True
+        self.allow_duplicates_checkbox.setChecked(self.layout_config.allow_duplicate_roles)
+        self._updating_duplicates_checkbox = False
+
+        self._configure_active_slide_view()
+        self._clear_selection_state()
+        self.control_zoom_viewport_norm = None
+        self.projector_zoom_viewport_norm = None
+        self.overlay_pointer_pos_norm = None
+
+        self._render_views()
+        self._update_projector()
+        self._update_mode_bar_for_state(
+            "Duplicados permitidos" if self.layout_config.allow_duplicate_roles else "Duplicados desactivados"
+        )
+
+    def _configure_active_slide_view(self) -> None:
+        for panel_key in PANEL_KEYS:
+            view = self._get_panel_widget(panel_key)
+            view.enable_interaction(False)
+            view.set_mouse_callbacks(
+                on_press=None,
+                on_move=None,
+                on_release=None,
+                on_hover=None,
+                on_right_click=lambda pk=panel_key: self._show_panel_context_menu(pk),
+            )
+            view.unsetCursor()
+
+        active_view = self._get_active_slide_view()
+        active_panel_key = None
+        for panel_key in PANEL_KEYS:
+            if self._get_panel_widget(panel_key) is active_view:
+                active_panel_key = panel_key
+                break
+
+        active_view.enable_interaction(True)
+        active_view.set_mouse_callbacks(
+            on_press=self._on_current_slide_mouse_press,
+            on_move=self._on_current_slide_mouse_move,
+            on_release=self._on_current_slide_mouse_release,
+            on_hover=self._on_current_slide_mouse_hover,
+            on_right_click=lambda pk=active_panel_key or "main_left": self._show_panel_context_menu(pk),
+        )
+
+    def _resolve_role_content(self, role: str) -> tuple[int | None, str]:
+        next_idx = self.current_page_index + 1
+
+        if role == "slide_current":
+            return self.current_page_index, "slide"
+
+        if role == "slide_next":
+            if next_idx < self.pdf_loader.page_count:
+                return next_idx, "slide"
+            return None, "slide"
+
+        if role == "notes_current":
+            return self.current_page_index, "notes"
+
+        if role == "notes_next":
+            if next_idx < self.pdf_loader.page_count:
+                return next_idx, "notes"
+            return None, "notes"
+
+        return None, "slide"
 
     def set_projector_window(self, projector_window: ProjectorWindow) -> None:
         self.projector_window = projector_window
@@ -346,6 +599,14 @@ class PresenterWindow(QMainWindow):
         refresh_screens_action.triggered.connect(self.refresh_screens)
         toolbar.addAction(refresh_screens_action)
 
+        toolbar.addSeparator()
+        toolbar.addWidget(self.allow_duplicates_checkbox)
+        toolbar.addSeparator()
+
+        toggle_help_action = QAction("Ayuda (H)", self)
+        toggle_help_action.triggered.connect(self.toggle_help_bar)
+        toolbar.addAction(toggle_help_action)
+
         toggle_timer_action = QAction("Cronómetro (T)", self)
         toggle_timer_action.triggered.connect(self.toggle_presentation_timer)
         toolbar.addAction(toggle_timer_action)
@@ -353,10 +614,6 @@ class PresenterWindow(QMainWindow):
         restart_timer_action = QAction("Reiniciar cronómetro (Shift+T)", self)
         restart_timer_action.triggered.connect(self.restart_presentation_timer)
         toolbar.addAction(restart_timer_action)
-
-        toggle_help_action = QAction("Ayuda (H)", self)
-        toggle_help_action.triggered.connect(self.toggle_help_bar)
-        toolbar.addAction(toggle_help_action)
 
         quit_action = QAction("Salir (Ctrl+Q / Cmd+Q)", self)
         quit_action.triggered.connect(QApplication.quit)
@@ -385,34 +642,51 @@ class PresenterWindow(QMainWindow):
         QShortcut(QKeySequence("P"), self, activated=self.toggle_pnote)
 
         QShortcut(QKeySequence("Ctrl+M"), self, activated=self.move_projector_to_next_screen)
-        QShortcut(QKeySequence("Ctrl+R"), self, activated=self.refresh_screens)
-        QShortcut(QKeySequence("Ctrl+Q"), self, activated=QApplication.quit)
+        QShortcut(QKeySequence("Meta+M"), self, activated=self.move_projector_to_next_screen)
 
-        # Herramientas
+        QShortcut(QKeySequence("Ctrl+R"), self, activated=self.refresh_screens)
+        QShortcut(QKeySequence("Meta+R"), self, activated=self.refresh_screens)
+
+        QShortcut(QKeySequence("Ctrl+Q"), self, activated=QApplication.quit)
+        QShortcut(QKeySequence("Meta+Q"), self, activated=QApplication.quit)
+
         QShortcut(QKeySequence("1"), self, activated=self.set_tool_normal)
         QShortcut(QKeySequence("2"), self, activated=self.set_tool_pointer)
         QShortcut(QKeySequence("3"), self, activated=self.set_tool_pen)
         QShortcut(QKeySequence("4"), self, activated=self.set_tool_eraser)
         QShortcut(QKeySequence("5"), self, activated=self.set_tool_spotlight)
 
-        # Dibujo
         QShortcut(QKeySequence("C"), self, activated=self.clear_current_page_drawings)
         QShortcut(QKeySequence("D"), self, activated=self.toggle_drawings_visible)
 
-        # Undo / Redo
         QShortcut(QKeySequence("Ctrl+Z"), self, activated=self.undo_current_page)
         QShortcut(QKeySequence("Ctrl+Y"), self, activated=self.redo_current_page)
 
-        # Zoom
         QShortcut(QKeySequence("Z"), self, activated=self.apply_zoom_from_selection)
         QShortcut(QKeySequence("X"), self, activated=self.clear_selection_only)
+        QShortcut(QKeySequence("L"), self, activated=self.toggle_panel_role_labels)
 
-        # Help
         QShortcut(QKeySequence("H"), self, activated=self.toggle_help_bar)
 
-        # Timer
         QShortcut(QKeySequence("T"), self, activated=self.toggle_presentation_timer)
         QShortcut(QKeySequence("Shift+T"), self, activated=self.restart_presentation_timer)
+
+        # Mac
+        QShortcut(QKeySequence("Meta+1"), self, activated=lambda: self.select_panel("main_left"))
+        QShortcut(QKeySequence("Meta+2"), self, activated=lambda: self.select_panel("right_top"))
+        QShortcut(QKeySequence("Meta+3"), self, activated=lambda: self.select_panel("right_middle"))
+        QShortcut(QKeySequence("Meta+4"), self, activated=lambda: self.select_panel("right_bottom"))
+
+        # Windows / Linux
+        QShortcut(QKeySequence("Ctrl+1"), self, activated=lambda: self.select_panel("main_left"))
+        QShortcut(QKeySequence("Ctrl+2"), self, activated=lambda: self.select_panel("right_top"))
+        QShortcut(QKeySequence("Ctrl+3"), self, activated=lambda: self.select_panel("right_middle"))
+        QShortcut(QKeySequence("Ctrl+4"), self, activated=lambda: self.select_panel("right_bottom"))
+
+        QShortcut(QKeySequence("Alt+1"), self, activated=lambda: self.assign_to_selected_panel("slide_current"))
+        QShortcut(QKeySequence("Alt+2"), self, activated=lambda: self.assign_to_selected_panel("slide_next"))
+        QShortcut(QKeySequence("Alt+3"), self, activated=lambda: self.assign_to_selected_panel("notes_current"))
+        QShortcut(QKeySequence("Alt+4"), self, activated=lambda: self.assign_to_selected_panel("notes_next"))
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         text = event.text()
@@ -467,6 +741,7 @@ class PresenterWindow(QMainWindow):
             self.control_zoom_viewport_norm = None
             self.projector_zoom_viewport_norm = None
             self._reset_presentation_timer()
+            self._configure_active_slide_view()
 
             if self.projector_window is not None:
                 self.projector_window.set_pdf_loader(self.pdf_loader)
@@ -721,6 +996,13 @@ class PresenterWindow(QMainWindow):
         self._render_views()
 
     def handle_escape(self) -> None:
+        if self.selected_panel_key is not None:
+            for key in ["main_left", "right_top", "right_middle", "right_bottom"]:
+                self._get_panel_view(key).set_panel_selected(False)
+
+            self.selected_panel_key = None
+            self._update_mode_bar_for_state("Selección de panel limpiada")
+            return
         if self.control_zoom_viewport_norm is not None or self.projector_zoom_viewport_norm is not None:
             self.control_zoom_viewport_norm = None
             self.projector_zoom_viewport_norm = None
@@ -1003,9 +1285,27 @@ class PresenterWindow(QMainWindow):
 
     def _on_current_slide_mouse_hover(self, nx: float, ny: float) -> None:
         self.overlay_pointer_pos_norm = (nx, ny)
+
         self._update_tool_preview()
-        self._render_views()
-        self._update_projector()
+
+        active_view = self._get_active_slide_view()
+
+        if self.tool_mode == "pointer":
+            active_view.set_pointer_overlay(
+                enabled=True,
+                pos_norm=self.overlay_pointer_pos_norm,
+                radius_px=float(self.pointer_size),
+                color="#ff3b30",
+            )
+        elif self.tool_mode == "spotlight":
+            active_view.set_spotlight_overlay(
+                enabled=True,
+                pos_norm=self.overlay_pointer_pos_norm,
+                radius_px=float(self.spotlight_size),
+            )
+
+        active_view.update()
+        self._schedule_projector_update()        
 
     def _on_current_slide_mouse_press(self, nx: float, ny: float) -> None:
         if not self.pdf_loader.is_loaded or self.customize_mode:
@@ -1064,8 +1364,33 @@ class PresenterWindow(QMainWindow):
             self._render_views()
             self._update_projector()
         elif self.tool_mode in ("pointer", "spotlight"):
-            self._render_views()
-            self._update_projector()
+            active_view = self._get_active_slide_view()
+
+            if self.tool_mode == "pointer":
+                active_view.set_pointer_overlay(
+                    enabled=True,
+                    pos_norm=self.overlay_pointer_pos_norm,
+                    radius_px=float(self.pointer_size),
+                    color="#ff3b30",
+                )
+                active_view.set_spotlight_overlay(False)
+            else:
+                active_view.set_spotlight_overlay(
+                    enabled=True,
+                    pos_norm=self.overlay_pointer_pos_norm,
+                    radius_px=float(self.spotlight_size),
+                )
+                active_view.set_pointer_overlay(False)
+
+            if self.selection_rect_norm is not None:
+                active_view.set_selection_overlay(
+                    enabled=True,
+                    rect_norm=self.selection_rect_norm,
+                )
+
+            self._update_tool_preview()
+            active_view.update()
+            self._schedule_projector_update()
 
     def _current_selection_min_size(self) -> tuple[float, float]:
         if self.control_zoom_viewport_norm is None:
@@ -1153,7 +1478,8 @@ class PresenterWindow(QMainWindow):
         if not strokes:
             return
 
-        rect = self.current_slide_view.get_content_rect()
+        active_view = self._get_active_slide_view()
+        rect = active_view.get_content_rect()
         base = max(min(rect.width(), rect.height()), 1.0)
         radius = self.eraser_size / base
 
@@ -1212,69 +1538,102 @@ class PresenterWindow(QMainWindow):
             drawings.append(self.current_stroke)
         return drawings
 
+    def _clear_view_overlays(self, view: SlideView) -> None:
+        view.set_drawings([], visible=False)
+        view.set_pointer_overlay(False)
+        view.set_spotlight_overlay(False)
+        view.clear_selection_overlay()
+        view.set_status_indicators([])
+        view.set_tool_preview(False)
+
+    def _update_panel_role_labels(self) -> None:
+        for panel_key in PANEL_KEYS:
+            view = self._get_panel_widget(panel_key)
+            if not self.show_panel_role_labels:
+                view.clear_panel_label()
+                continue
+
+            role = self._get_panel_role(panel_key)
+            view.set_panel_label(
+                visible=True,
+                text=self._panel_role_label(role),
+                color=self._panel_role_color(role),
+            )
+
     def _render_views(self) -> None:
         if not self.pdf_loader.is_loaded:
+            for panel_key in PANEL_KEYS:
+                view = self._get_panel_widget(panel_key)
+                view.clear_slide()
+                self._clear_view_overlays(view)
+                view.clear_panel_label()
+                view.set_panel_selected(False)
+            self.pnote_bar.setText("pnote: sin contenido")
             return
 
-        control_idx = self.current_page_index
+        self._configure_active_slide_view()
 
-        self._render(self.current_slide_view, control_idx, "slide")
-        self._render(self.current_note_view, control_idx, "notes")
-        self.current_slide_view.set_viewport_norm(self.control_zoom_viewport_norm)
+        for panel_key in PANEL_KEYS:
+            role = self._get_panel_role(panel_key)
+            view = self._get_panel_widget(panel_key)
+            page_index, region = self._resolve_role_content(role)
 
-        next_idx = control_idx + 1
-        if next_idx < self.pdf_loader.page_count:
-            self._render(self.next_slide_view, next_idx, "slide")
-            self._render(self.next_note_view, next_idx, "notes")
-        else:
-            self.next_slide_view.clear_slide()
-            self.next_note_view.clear_slide()
+            if page_index is None:
+                view.clear_slide()
+                self._clear_view_overlays(view)
+                view.set_panel_selected(panel_key == self.selected_panel_key)
+                continue
 
-        self.next_slide_view.set_viewport_norm(None)
-        self.current_note_view.set_viewport_norm(None)
-        self.next_note_view.set_viewport_norm(None)
+            apply_zoom = role == "slide_current"
+            self._render(view, page_index, region, apply_zoom=apply_zoom)
+
+            if role == "slide_current":
+                view.set_viewport_norm(self.control_zoom_viewport_norm)
+            else:
+                view.set_viewport_norm(None)
+
+            self._clear_view_overlays(view)
+            view.set_panel_selected(panel_key == self.selected_panel_key)
 
         current_drawings = self._compose_current_page_drawings() if self.drawings_visible else []
-        self.current_slide_view.set_drawings(current_drawings, visible=self.drawings_visible)
-        self.next_slide_view.set_drawings([], visible=False)
-        self.current_note_view.set_drawings([], visible=False)
-        self.next_note_view.set_drawings([], visible=False)
-
-        self.current_slide_view.set_pointer_overlay(False)
-        self.current_slide_view.set_spotlight_overlay(False)
-        self.current_slide_view.clear_selection_overlay()
+        active_view = self._get_active_slide_view()
+        active_view.set_drawings(current_drawings, visible=self.drawings_visible)
 
         if self.tool_mode == "pointer" and self.overlay_pointer_pos_norm is not None:
-            self.current_slide_view.set_pointer_overlay(
+            active_view.set_pointer_overlay(
                 enabled=True,
                 pos_norm=self.overlay_pointer_pos_norm,
                 radius_px=float(self.pointer_size),
                 color="#ff3b30",
             )
         elif self.tool_mode == "spotlight" and self.overlay_pointer_pos_norm is not None:
-            self.current_slide_view.set_spotlight_overlay(
+            active_view.set_spotlight_overlay(
                 enabled=True,
                 pos_norm=self.overlay_pointer_pos_norm,
                 radius_px=float(self.spotlight_size),
             )
 
         if self.selection_rect_norm is not None:
-            self.current_slide_view.set_selection_overlay(
+            active_view.set_selection_overlay(
                 enabled=True,
                 rect_norm=self.selection_rect_norm,
             )
 
         if self.show_pnote:
-            pnotes = self.pdf_loader.get_pnotes(control_idx)
+            pnotes = self.pdf_loader.get_pnotes(self.current_page_index)
             if pnotes:
                 self.pnote_bar.setText("pnote: " + " | ".join(pnotes))
             else:
                 self.pnote_bar.setText("pnote: (sin notas)")
 
+        self._update_panel_role_labels()
         self._update_current_slide_indicators()
         self._update_tool_preview()
 
     def _update_current_slide_indicators(self) -> None:
+        for panel_key in PANEL_KEYS:
+            self._get_panel_widget(panel_key).set_status_indicators([])
+
         indicators: list[tuple[str, str]] = []
 
         if self.is_frozen:
@@ -1298,25 +1657,28 @@ class PresenterWindow(QMainWindow):
         if self.control_zoom_viewport_norm is not None:
             indicators.append(("ZOOM", "#22c55e"))
 
-        self.current_slide_view.set_status_indicators(indicators)
+        self._get_active_slide_view().set_status_indicators(indicators)
 
     def _update_tool_preview(self) -> None:
+        for panel_key in PANEL_KEYS:
+            self._get_panel_widget(panel_key).set_tool_preview(False)
+
+        active_view = self._get_active_slide_view()
+
         if self.tool_mode == "pen":
-            self.current_slide_view.set_tool_preview(
+            active_view.set_tool_preview(
                 enabled=True,
                 color="#ff3b30",
                 radius_px=max(3.0, self.pen_size / 2),
                 pos_norm=self.overlay_pointer_pos_norm,
             )
         elif self.tool_mode == "eraser":
-            self.current_slide_view.set_tool_preview(
+            active_view.set_tool_preview(
                 enabled=True,
                 color="#111111",
                 radius_px=max(4.0, float(self.eraser_size)),
                 pos_norm=self.overlay_pointer_pos_norm,
             )
-        else:
-            self.current_slide_view.set_tool_preview(enabled=False, pos_norm=None)
 
     def _update_projector(self) -> None:
         if self.projector_window is None:
@@ -1359,19 +1721,17 @@ class PresenterWindow(QMainWindow):
             zoom_viewport_norm=zoom_viewport,
         )
 
-    def _render(self, view: SlideView, page_index: int, region: str) -> None:
+    def _render(self, view: SlideView, page_index: int, region: str, apply_zoom: bool = False) -> None:
         w = max(view.width(), 100)
         h = max(view.height(), 100)
 
-        viewport = None
-        if view is self.current_slide_view and region == "slide":
-            viewport = self.control_zoom_viewport_norm
+        viewport = self.control_zoom_viewport_norm if apply_zoom else None
 
         scale_factor = 1.0
         if viewport is not None:
             _, _, vw, vh = viewport
             if vw > 0.0 and vh > 0.0:
-                scale_factor = min(8.0, max(1.0 / vw, 1.0 / vh))
+                scale_factor = min(3.0, max(1.0 / vw, 1.0 / vh))
 
         render_w = int(w * scale_factor)
         render_h = int(h * scale_factor)
@@ -1389,4 +1749,5 @@ class PresenterWindow(QMainWindow):
         view.set_slide_pixmap(rendered.pixmap)
 
     def _update_current_tool_cursor(self) -> None:
-        self.current_slide_view.unsetCursor()
+        for panel_key in PANEL_KEYS:
+            self._get_panel_widget(panel_key).unsetCursor()

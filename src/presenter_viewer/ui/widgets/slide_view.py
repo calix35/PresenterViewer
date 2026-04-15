@@ -57,6 +57,15 @@ class SlideView(QWidget):
         self._selection_enabled: bool = False
         self._selection_rect_norm: tuple[float, float, float, float] | None = None
 
+        # Etiqueta overlay del panel
+        self._panel_label_visible: bool = False
+        self._panel_label_text: str = ""
+        self._panel_label_color: str = "#ef4444"
+
+        # Selección de panel por teclado
+        self._panel_selected: bool = False
+        self._panel_selected_color: str = "#3b82f6"
+
         self.setMouseTracking(True)
 
     def set_slide_pixmap(self, pixmap: QPixmap) -> None:
@@ -177,6 +186,31 @@ class SlideView(QWidget):
         self._selection_rect_norm = None
         self.update()
 
+    def set_panel_label(
+        self,
+        visible: bool,
+        text: str = "",
+        color: str = "#ef4444",
+    ) -> None:
+        self._panel_label_visible = visible
+        self._panel_label_text = text
+        self._panel_label_color = color
+        self.update()
+
+    def clear_panel_label(self) -> None:
+        self._panel_label_visible = False
+        self._panel_label_text = ""
+        self.update()
+
+    def set_panel_selected(
+        self,
+        selected: bool,
+        color: str = "#3b82f6",
+    ) -> None:
+        self._panel_selected = selected
+        self._panel_selected_color = color
+        self.update()
+
     def clear_overlays(self) -> None:
         self._pointer_enabled = False
         self._pointer_pos_norm = None
@@ -233,6 +267,8 @@ class SlideView(QWidget):
                 self._draw_spotlight_overlay(painter, target_rectf)
                 self._draw_pointer_overlay(painter, target_rectf)
                 self._draw_selection_overlay(painter, target_rectf)
+                self._draw_panel_label(painter, target_rectf)
+                self._draw_panel_selection_border(painter, target_rectf)
 
         self._draw_tool_preview(painter)
         self._draw_status_indicators(painter)
@@ -383,6 +419,71 @@ class SlideView(QWidget):
 
         painter.restore()
 
+    def _draw_panel_label(self, painter: QPainter, target_rect: QRectF) -> None:
+        if not self._panel_label_visible or not self._panel_label_text:
+            return
+
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
+
+        font = QFont()
+        font.setPointSize(10)
+        font.setBold(True)
+        painter.setFont(font)
+
+        metrics = painter.fontMetrics()
+        text_w = metrics.horizontalAdvance(self._panel_label_text)
+        text_h = metrics.height()
+
+        padding_x = 10
+        padding_y = 6
+        rect_w = text_w + padding_x * 2
+        rect_h = text_h + padding_y * 2
+
+        x = target_rect.x() + 10
+        y = target_rect.y() + 10
+        badge_rect = QRectF(x, y, rect_w, rect_h)
+
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(0, 0, 0, 150))
+        painter.drawRoundedRect(badge_rect, 8, 8)
+
+        accent_w = 6
+        accent_rect = QRectF(x, y, accent_w, rect_h)
+        painter.setBrush(QColor(self._panel_label_color))
+        painter.drawRoundedRect(accent_rect, 8, 8)
+
+        text_rect = QRectF(x + accent_w + 8, y, rect_w - accent_w - 8, rect_h)
+        painter.setPen(QColor("#ffffff"))
+        painter.drawText(
+            text_rect,
+            Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
+            self._panel_label_text,
+        )
+
+        painter.restore()
+
+    def _draw_panel_selection_border(self, painter: QPainter, target_rect: QRectF) -> None:
+        if not self._panel_selected:
+            return
+
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+
+        border_rect = target_rect.adjusted(2, 2, -2, -2)
+
+        glow_pen = QPen(QColor(59, 130, 246, 70), 8)
+        painter.setPen(glow_pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRoundedRect(border_rect, 12, 12)
+
+        main_pen = QPen(QColor(self._panel_selected_color), 3)
+        painter.setPen(main_pen)
+        painter.drawRoundedRect(border_rect, 12, 12)
+
+        painter.restore()
+
     def _draw_tool_preview(self, painter: QPainter) -> None:
         if not self._tool_preview_enabled or self._tool_preview_pos_norm is None:
             return
@@ -505,12 +606,12 @@ class SlideView(QWidget):
     def mousePressEvent(self, event: QMouseEvent) -> None:
         super().mousePressEvent(event)
 
-        if not self._interaction_enabled:
-            return
-
         if event.button() == Qt.MouseButton.RightButton:
             if self._right_click_callback is not None:
                 self._right_click_callback()
+            return
+
+        if not self._interaction_enabled:
             return
 
         if event.button() != Qt.MouseButton.LeftButton:
