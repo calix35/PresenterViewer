@@ -10,11 +10,13 @@
 </p>
 
 <p align="center">
+  <img alt="Autor" src="https://img.shields.io/badge/Autor-Alan%20D%C3%ADaz-blue">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.x-blue">
   <img alt="GUI" src="https://img.shields.io/badge/GUI-PyQt-success">
   <img alt="PDF" src="https://img.shields.io/badge/Soporte-PDF-important">
   <img alt="Notas" src="https://img.shields.io/badge/Soporte-Beamer%20notes-informational">
-  <img alt="Licencia" src="https://img.shields.io/badge/Estado-En%20desarrollo-orange">
+  <img alt="Estado" src="https://img.shields.io/badge/status-active-brightgreen">
+  <img alt="License" src="https://img.shields.io/badge/License-MIT-yellow">
 </p>
 
 ---
@@ -72,6 +74,7 @@
 - [Buenas prácticas de exposición](#buenas-prácticas-de-exposición)
 - [Flujo recomendado](#flujo-recomendado)
 - [Referencia de inspiración](#referencia-de-inspiración)
+- [Autor](#autor)
 
 ---
 
@@ -801,3 +804,43 @@ La organización funcional de esta herramienta toma inspiración de soluciones c
 
 > [!NOTE]
 > La intención aquí es ofrecer una versión moderna, extensible y adaptada a flujos actuales.
+
+---
+
+# Autor
+
+<p align="center">
+  <strong>Alan Díaz Manríquez</strong><br>
+  Facultad de Ingeniería y Ciencias (FIC)<br>
+  Universidad Autónoma de Tamaulipas<br><br>
+  📧 calix35@gmail.com
+</p>
+
+---
+
+## Sobre el proyecto
+
+Presenter Viewer fue desarrollado como una herramienta académica para mejorar la experiencia de exposición en entornos educativos, conferencias y presentaciones técnicas.
+
+Su objetivo es proporcionar una alternativa moderna y flexible a los visores tradicionales, integrando soporte para notes, pnotes, control de paneles y herramientas interactivas.
+
+---
+
+## Contacto
+
+Si deseas colaborar, reportar errores o proponer mejoras:
+
+- 📧 Email: calix35@gmail.com
+- 💻 GitHub: https://github.com/calix35
+
+---
+
+## Licencia
+
+## Licencia
+
+Este proyecto está bajo la licencia MIT.
+
+Puedes usar, modificar y distribuir este software libremente, siempre que se incluya la licencia original.
+
+Consulta el archivo [LICENSE](LICENSE) para más detalles.
