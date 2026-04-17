@@ -1,0 +1,11 @@
+[project]
+name = "presenter_viewer"
+version = "0.1.0"
+description = "Presenter Viewer"
+authors = [{ name = "Alan Diaz" }]
+dependencies = [
+    "PySide6"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

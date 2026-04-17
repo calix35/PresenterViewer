@@ -1,0 +1,1751 @@
+\documentclass[aspectratio=169,professionalfonts]{beamer}
+
+% =================================================
+% Idioma y codificación
+% =================================================
+\usepackage[spanish,es-nodecimaldot]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+
+% =================================================
+% Notas para presentador
+% =================================================
+\setbeameroption{show notes on second screen=left}
+% \setbeameroption{show notes on second screen=right}
+
+% =================================================
+% Paquetes
+% =================================================
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{positioning}
+\usepackage{pdfcomment}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{ragged2e}
+
+% =================================================
+% Colores
+% =================================================
+\definecolor{PVNavy}{HTML}{0F172A}
+\definecolor{PVBlue}{HTML}{1D4ED8}
+\definecolor{PVSky}{HTML}{38BDF8}
+\definecolor{PVTeal}{HTML}{0F766E}
+\definecolor{PVGold}{HTML}{D4A017}
+\definecolor{PVRed}{HTML}{DC2626}
+\definecolor{PVGreen}{HTML}{059669}
+\definecolor{PVSlate}{HTML}{334155}
+\definecolor{PVLight}{HTML}{F8FAFC}
+\definecolor{PVGray}{HTML}{E2E8F0}
+\definecolor{PVDarkText}{HTML}{0B1324}
+
+% =================================================
+% Tema visual elegante
+% =================================================
+\setbeamercolor{normal text}{fg=PVDarkText,bg=white}
+\setbeamercolor{structure}{fg=PVBlue}
+\setbeamercolor{title}{fg=white}
+\setbeamercolor{subtitle}{fg=white}
+\setbeamercolor{frametitle}{fg=white,bg=PVNavy}
+\setbeamercolor{block title}{fg=white,bg=PVBlue}
+\setbeamercolor{block body}{fg=PVDarkText,bg=PVLight}
+\setbeamercolor{alertblock title}{fg=white,bg=PVRed}
+\setbeamercolor{alertblock body}{fg=PVDarkText,bg=white}
+\setbeamercolor{exampleblock title}{fg=white,bg=PVTeal}
+\setbeamercolor{exampleblock body}{fg=PVDarkText,bg=white}
+
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{headline}{}
+\setbeamertemplate{footline}{%
+  \leavevmode
+  \hbox{%
+    \begin{beamercolorbox}[wd=.78\paperwidth,ht=3.1ex,dp=1.2ex,leftskip=1em]{author in head/foot}%
+      \color{PVSlate}\small\insertshorttitle
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[wd=.22\paperwidth,ht=3.1ex,dp=1.2ex,rightskip=1em plus1fil]{date in head/foot}%
+      \color{PVSlate}\small\insertframenumber/\inserttotalframenumber
+    \end{beamercolorbox}%
+  }
+}
+
+\setbeamertemplate{itemize item}{\color{PVBlue}$\blacktriangleright$}
+\setbeamertemplate{itemize subitem}{\color{PVTeal}$\bullet$}
+
+\setlength{\leftmargini}{1.2em}
+\setlist[itemize]{itemsep=0.35em}
+\setlist[enumerate]{itemsep=0.35em}
+
+% =================================================
+% Listings
+% =================================================
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  columns=fullflexible,
+  frame=single,
+  framerule=0.5pt,
+  rulecolor=\color{black!20},
+  backgroundcolor=\color{black!2},
+  showstringspaces=false,
+  keywordstyle=\color{PVBlue}\bfseries,
+  commentstyle=\color{PVTeal},
+  stringstyle=\color{PVRed}
+}
+
+% =================================================
+% Macros
+% =================================================
+\newcommand{\bluebf}[1]{\textcolor{PVBlue}{\textbf{#1}}}
+\newcommand{\soft}[1]{\textcolor{PVSlate}{#1}}
+
+\newcommand{\pnote}[1]{%
+  \pdfcomment[
+    icon=Note,
+    open=false,
+    subject={Presenter Note},
+    color={1 1 0},
+    opacity=0,
+    author={Presenter Viewer}
+  ]{#1}%
+}
+
+\newcommand{\sectioncard}[2]{
+\begin{frame}[plain]
+\begin{tikzpicture}[remember picture,overlay]
+  \fill[PVNavy] (current page.south west) rectangle (current page.north east);
+  \fill[PVBlue] (current page.south west) rectangle ([xshift=0.22\paperwidth]current page.north west);
+  \fill[PVSky,opacity=.15] ([xshift=0.55\paperwidth,yshift=0.15\paperheight]current page.south west) circle (2.4cm);
+  \fill[PVSky,opacity=.10] ([xshift=0.8\paperwidth,yshift=0.75\paperheight]current page.south west) circle (3.0cm);
+\end{tikzpicture}
+
+\vspace*{1.8cm}
+{\color{white}\fontsize{28}{32}\selectfont\bfseries #1\par}
+\vspace{0.35cm}
+{\color{white!85}\Large #2\par}
+\vfill
+{\color{white!65}\small Presenter Viewer Demo}
+\end{frame}
+}
+
+\newcommand{\kbd}[1]{%
+\tikz[baseline=(key.base)]\node[
+  draw=PVGray,
+  fill=white,
+  rounded corners=3pt,
+  inner xsep=5pt,
+  inner ysep=2pt,
+  text=PVNavy,
+  font=\ttfamily\footnotesize
+] (key) {#1};%
+}
+
+\newcommand{\shortcutline}[2]{
+\begin{block}{#1}
+\centering #2
+\end{block}
+}
+
+\newcommand{\imgplaceholder}[2]{
+\begin{center}
+\IfFileExists{images/#1}{%
+  \includegraphics[width=0.92\linewidth]{images/#1}%
+}{%
+  \fbox{\parbox[c][0.26\paperheight][c]{0.86\linewidth}{%
+    \centering
+    \Large Captura pendiente\\[0.4em]
+    \texttt{images/#1}\\[0.6em]
+    \normalsize #2
+  }}%
+}
+\end{center}
+}
+
+\newcommand{\dashboardcard}[3]{
+\begin{beamercolorbox}[wd=\linewidth,sep=0.9em,rounded=true,shadow=true]{block body}
+{\color{PVBlue}\large\bfseries #1}\\[0.35em]
+{\normalsize #2}\\[0.45em]
+{\color{PVSlate}\small #3}
+\end{beamercolorbox}
+}
+
+\newcommand{\codebox}[1]{%
+\fbox{%
+\parbox{0.94\linewidth}{%
+\ttfamily\small #1
+}%
+}%
+}
+
+% =================================================
+% Portada personalizada
+% =================================================
+\setbeamertemplate{title page}{
+\begin{tikzpicture}[remember picture,overlay]
+  \fill[PVNavy] (current page.south west) rectangle (current page.north east);
+  \fill[PVBlue] (current page.south west) rectangle ([xshift=0.25\paperwidth]current page.north west);
+  \fill[PVSky,opacity=.14] ([xshift=0.82\paperwidth,yshift=0.72\paperheight]current page.south west) circle (2.7cm);
+  \fill[PVSky,opacity=.10] ([xshift=0.72\paperwidth,yshift=0.22\paperheight]current page.south west) circle (3.3cm);
+  \fill[white,opacity=.06] ([xshift=0.34\paperwidth,yshift=0.18\paperheight]current page.south west)
+       rectangle ([xshift=0.92\paperwidth,yshift=0.82\paperheight]current page.south west);
+\end{tikzpicture}
+
+\vspace*{0.72cm}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.56\textwidth}
+{\color{white!85}\large Demo elegante y tutorial}\par
+\vspace{0.35cm}
+{\color{white}\fontsize{26}{30}\selectfont\bfseries \inserttitle\par}
+\vspace{0.35cm}
+{\color{white!80}\large \insertsubtitle\par}
+\vspace{0.9cm}
+{\color{white!95}\normalsize \insertauthor\par}
+\vspace{0.18cm}
+{\color{white!72}\fontsize{8.5}{10}\selectfont \insertdate\par}
+
+\column{0.39\textwidth}
+\vspace{0.45cm}
+\begin{beamercolorbox}[wd=\linewidth,sep=1.1em,rounded=true,shadow=true]{block body}
+{\large\bfseries Contenido}\par
+\vspace{0.5em}
+\begin{itemize}
+  \item Instalación y ejecución
+  \item Interfaz del visor
+  \item Teclas y herramientas
+  \item \texttt{\textbackslash note\{\}} y \texttt{\textbackslash pnote\{\}}
+  \item Flujo recomendado de trabajo
+\end{itemize}
+\end{beamercolorbox}
+\end{columns}
+\vfill
+}
+
+% =================================================
+% Datos
+% =================================================
+\title{Presenter Viewer}
+\subtitle{Manual de uso y preparación de presentaciones}
+\author{Alan Díaz Manríquez (calix35@gmail.com)}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+  \note{Esta demo debe servir como archivo oficial de ejemplo y como PDF de prueba del proyecto.}
+\end{frame}
+
+\begin{frame}{Contenido}
+\tableofcontents
+\note{Recorrer rápidamente la estructura del manual antes de entrar a los detalles.}
+\end{frame}
+
+\section{Visión general}
+
+\begin{frame}{¿Qué es Presenter Viewer?}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.58\textwidth}
+\begin{block}{Definición}
+Presenter Viewer es un \bluebf{visor de presentaciones para el expositor} diseñado para trabajar cómodamente con PDFs académicos o profesionales, mostrando en una misma interfaz la información que el ponente necesita durante la exposición.
+\end{block}
+
+\begin{itemize}
+  \item Visualiza la \bluebf{filmina actual}.
+  \item Permite consultar la \bluebf{siguiente filmina}.
+  \item Soporta \bluebf{notes} exportadas desde Beamer.
+  \item Integra \bluebf{pnotes} como apoyo breve y táctico.
+  \item Incluye herramientas interactivas para presentar en vivo.
+\end{itemize}
+
+\column{0.38\textwidth}
+\begin{exampleblock}{Idea clave}
+No es solo un lector de PDF: busca ofrecer \bluebf{control total de la presentación} sin que el público vea la lógica interna del expositor.
+\end{exampleblock}
+\end{columns}
+
+\note{
+Presentar Presenter Viewer como una herramienta de exposición, no solo como visor.
+La diferencia importante es que separa lo que ve el público de lo que necesita el presentador.
+}
+\end{frame}
+
+\begin{frame}{¿Para qué sirve?}
+
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.48\textwidth}
+\begin{small}
+\dashboardcard{Clases}{Permite exponer con notes, cronómetro, navegación visual y apoyo privado.}{Útil para cursos, laboratorios, demostraciones y sesiones híbridas.}
+\end{small}
+\vspace{0.3cm}
+\begin{small}
+\dashboardcard{Conferencias}{Facilita mantener ritmo, foco visual y separación limpia entre presentador y proyector.}{Especialmente valioso cuando hay dos pantallas o proyector externo.}
+\end{small}
+\column{0.48\textwidth}
+\begin{small}
+  \dashboardcard{Defensas}{Ayuda a resaltar detalles, controlar tiempos y conservar recordatorios discretos.}{Muy útil en tesis, coloquios, seminarios y presentaciones técnicas.}
+\end{small}
+
+\vspace{0.3cm}
+\begin{small}
+\dashboardcard{Ensayos}{Sirve como entorno realista de práctica antes de la exposición formal.}{Permite validar flujo, herramientas, layout y tiempo de intervención.}
+\end{small}
+\end{columns}
+
+\note{
+Aquí conviene enfatizar que la herramienta sirve tanto en escenario real como en preparación previa.
+La idea es que el usuario ensaye en el mismo entorno donde luego va a presentar.
+}
+\end{frame}
+
+\begin{frame}{Flujo de trabajo general}
+\begin{block}{Pipeline recomendado}
+\centering
+\kbd{LaTeX} \hspace{0.35cm} $\rightarrow$ \hspace{0.35cm}
+\kbd{PDF} \hspace{0.35cm} $\rightarrow$ \hspace{0.35cm}
+\kbd{Presenter Viewer} \hspace{0.35cm} $\rightarrow$ \hspace{0.35cm}
+\kbd{Configurar paneles} \hspace{0.35cm} $\rightarrow$ \hspace{0.35cm}
+\kbd{Presentar}
+\end{block}
+
+\vspace{0.25cm}
+
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.58\textwidth}
+\begin{itemize}
+  \item Crear la presentación en Beamer.
+  \item Exportar el PDF final.
+  \item Abrirlo en Presenter Viewer.
+  \item Ajustar paneles y herramientas.
+  \item Conectar el proyector o segunda pantalla.
+  \item Exponer con control del flujo.
+\end{itemize}
+
+\column{0.38\textwidth}
+\begin{alertblock}{Objetivo}
+Separar claramente la \bluebf{vista del presentador} de la \bluebf{salida del público}.
+\end{alertblock}
+\end{columns}
+
+\note{
+Esta diapositiva debe dejar claro el pipeline completo.
+Presenter Viewer aparece como puente entre el PDF ya compilado y la exposición real.
+}
+\end{frame}
+
+\section{Instalación y ejecución}
+\sectioncard{1. Instalación y ejecución}{Cómo iniciar Presenter Viewer correctamente}
+
+% =================================================
+% Requisitos
+% =================================================
+\begin{frame}{Requisitos}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.58\textwidth}
+\begin{block}{Requisitos generales}
+\begin{itemize}
+  \item Python 3.x
+  \item Dependencias del proyecto
+  \item Entorno gráfico compatible con PyQt
+  \item Un archivo PDF listo para abrir
+\end{itemize}
+\end{block}
+
+\begin{exampleblock}{Recomendación}
+Trabaja dentro de un \bluebf{entorno virtual} para mantener las dependencias aisladas y evitar conflictos con otras instalaciones de Python.
+\end{exampleblock}
+
+\column{0.38\textwidth}
+\dashboardcard{Consejo}{Prueba primero con un PDF simple y después con uno que incluya notes.}{Así validas tanto el flujo básico como el modo de presentador.}
+\end{columns}
+
+\note{
+Aclarar que la aplicación es gráfica, por lo que necesita un entorno con soporte de ventana.
+}
+\end{frame}
+
+% =================================================
+% Clonar repo
+% =================================================
+\begin{frame}[fragile]{Clonar el repositorio}
+\begin{block}{Paso 1}
+\begin{lstlisting}
+git clone https://github.com/calix35/PresenterViewer.git
+cd presenter_viewer
+\end{lstlisting}
+\end{block}
+
+\begin{exampleblock}{Buena práctica}
+Mantén el proyecto en una carpeta dedicada para que también sea sencillo ubicar \texttt{samples}, \texttt{images} y los archivos PDF de prueba.
+\end{exampleblock}
+
+\note{
+Este es el punto de arranque para cualquier usuario que quiera instalar el sistema desde el repositorio.
+}
+\end{frame}
+
+% =================================================
+% Entorno virtual
+% =================================================
+\begin{frame}[fragile]{Crear y activar un entorno virtual}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.58\textwidth}
+\begin{block}{Crear el entorno}
+\begin{lstlisting}
+python -m venv .venv
+\end{lstlisting}
+\end{block}
+
+\begin{block}{Activar en Windows}
+\begin{lstlisting}
+.venv\Scripts\activate
+\end{lstlisting}
+\end{block}
+
+\begin{block}{Activar en Linux/macOS}
+\begin{lstlisting}
+source .venv/bin/activate
+\end{lstlisting}
+\end{block}
+
+\column{0.38\textwidth}
+\begin{alertblock}{Importante}
+Conviene activar el entorno antes de instalar dependencias o ejecutar la aplicación.
+\end{alertblock}
+\end{columns}
+
+\note{
+Aquí puedes explicar que esto evita instalar paquetes globalmente.
+}
+\end{frame}
+
+% =================================================
+% requirements y dependencias
+% =================================================
+\begin{frame}[fragile]{Instalar dependencias desde \texttt{requirements.txt}}
+\begin{block}{Instalación básica}
+\begin{lstlisting}
+python -m pip install -r requirements.txt
+\end{lstlisting}
+\end{block}
+
+\begin{block}{Dependencia clave}
+Entre las dependencias debe encontrarse \texttt{PyQt} o la variante de Qt que use el proyecto, ya que la interfaz gráfica depende de ella.
+\end{block}
+
+\begin{exampleblock}{¿Por qué usar \texttt{requirements.txt}?}
+Porque permite reproducir el entorno exacto necesario para ejecutar Presenter Viewer en otra computadora.
+\end{exampleblock}
+
+\note{
+Enfatizar que aquí vive la base del entorno gráfico: sin Qt, la aplicación no abre correctamente.
+}
+\end{frame}
+
+% =================================================
+% editable
+% =================================================
+\begin{frame}[fragile]{Instalación del proyecto (modo editable recomendado)}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.58\textwidth}
+\begin{block}{Instalación}
+\begin{lstlisting}
+python -m pip install -e .
+\end{lstlisting}
+\end{block}
+
+\begin{itemize}
+  \item Registra el comando \texttt{presenter-viewer}.
+  \item Facilita ejecutar la aplicación como programa.
+  \item Permite modificar el código sin reinstalar todo cada vez.
+\end{itemize}
+
+\column{0.38\textwidth}
+\begin{alertblock}{Recomendado para desarrollo}
+Este modo es especialmente útil cuando todavía se están haciendo pruebas, ajustes o correcciones.
+\end{alertblock}
+\end{columns}
+
+\note{
+Aquí puedes mencionar que el modo editable fue importante para simplificar la ejecución durante el desarrollo.
+}
+\end{frame}
+
+% =================================================
+% ejecución
+% =================================================
+\begin{frame}[fragile]{Ejecución de la aplicación}
+\begin{block}{Comando principal}
+\begin{lstlisting}
+presenter-viewer
+\end{lstlisting}
+\end{block}
+
+\begin{block}{Abrir un PDF directamente}
+\begin{lstlisting}
+presenter-viewer archivo.pdf
+\end{lstlisting}
+\end{block}
+
+\begin{block}{Alternativa}
+\begin{lstlisting}
+python -m presenter_viewer.main
+\end{lstlisting}
+\end{block}
+
+\pnote{Conviene iniciar primero con un PDF de prueba para verificar la detección de notes y paneles.}
+
+\note{
+Comentar que el archivo puede darse con ruta relativa o absoluta.
+}
+\end{frame}
+
+% =================================================
+% comportamiento inicial
+% =================================================
+\begin{frame}{Comportamiento al iniciar}
+\begin{block}{Escenarios habituales}
+\begin{itemize}
+  \item Si se pasa un PDF al iniciar, la aplicación lo abre automáticamente.
+  \item Si no se pasa PDF, puede intentar cargar un archivo de ejemplo.
+  \item Si no existe un ejemplo, la ventana queda lista para abrir un archivo manualmente.
+\end{itemize}
+\end{block}
+
+\begin{alertblock}{Recomendación}
+Antes de una exposición real, abre explícitamente el PDF final y confirma que cargó correctamente.
+\end{alertblock}
+
+\note{
+Esto ayuda a que el usuario entienda qué esperar incluso si arranca la aplicación vacía.
+}
+\end{frame}
+
+% =================================================
+% sin PDF
+% =================================================
+\begin{frame}{Aplicación iniciada sin PDF}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.56\textwidth}
+\imgplaceholder{startup-empty.png}{Ventana principal recién abierta, sin archivo cargado.}
+
+\column{0.40\textwidth}
+\begin{block}{Qué debería verse}
+\begin{itemize}
+  \item ventana principal activa;
+  \item paneles vacíos o en espera;
+  \item controles disponibles;
+  \item opción clara para abrir un archivo.
+\end{itemize}
+\end{block}
+
+\begin{exampleblock}{Interpretación}
+Este estado indica que la aplicación está lista para trabajar, aunque todavía no se haya cargado ningún PDF.
+\end{exampleblock}
+\end{columns}
+
+\note{
+Esta captura ayuda mucho al usuario nuevo, porque le muestra que una ventana vacía no significa error.
+}
+\end{frame}
+
+% =================================================
+% con PDF
+% =================================================
+\begin{frame}{Aplicación iniciada con PDF cargado}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.56\textwidth}
+\imgplaceholder{startup-loaded.png}{Ventana principal con un PDF ya cargado desde línea de comandos o desde la interfaz.}
+
+\column{0.40\textwidth}
+\begin{block}{Qué debería verse}
+\begin{itemize}
+  \item filmina actual;
+  \item paneles auxiliares activos;
+  \item notas si el PDF las incluye;
+  \item interfaz lista para presentar.
+\end{itemize}
+\end{block}
+
+\begin{alertblock}{Verificación rápida}
+Conviene revisar de inmediato si el archivo fue detectado como PDF normal o como PDF con notes.
+\end{alertblock}
+\end{columns}
+
+\note{
+Esta diapositiva conecta la instalación con el uso real: ya no solo corre la app, sino que queda lista para exponer.
+}
+\end{frame}
+
+% =================================================
+% abrir manualmente
+% =================================================
+\begin{frame}{Abrir un PDF manualmente}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.58\textwidth}
+\begin{block}{Métodos de apertura}
+\begin{itemize}
+  \item desde el botón o menú de abrir archivo;
+  \item con el atajo de teclado;
+  \item arrastrando el archivo PDF a la ventana.
+\end{itemize}
+\end{block}
+
+\begin{block}{Atajo sugerido}
+\begin{itemize}
+  \item \kbd{Ctrl+O} en Windows y Linux
+  \item \kbd{Cmd+O} en macOS
+\end{itemize}
+\end{block}
+
+\column{0.38\textwidth}
+\begin{exampleblock}{Ventaja}
+Esto permite abrir rápidamente un PDF incluso aunque la aplicación haya iniciado sin archivo.
+\end{exampleblock}
+\end{columns}
+
+\note{
+Aquí conviene mencionar explícitamente el atajo según plataforma.
+}
+\end{frame}
+
+% =================================================
+% drag and drop
+% =================================================
+\begin{frame}{Soporte de drag \& drop}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.58\textwidth}
+\begin{block}{Flujo}
+El usuario puede arrastrar un archivo PDF desde el explorador o gestor de archivos y soltarlo directamente sobre la ventana de Presenter Viewer.
+\end{block}
+
+\begin{itemize}
+  \item agiliza la apertura;
+  \item evita navegar por cuadros de diálogo;
+  \item hace más natural el uso en escritorio.
+\end{itemize}
+
+\column{0.38\textwidth}
+\begin{alertblock}{Importante}
+El archivo debe ser un PDF válido y conviene verificar de inmediato si se detectó como PDF normal o como PDF con notes.
+\end{alertblock}
+\end{columns}
+
+\note{
+Este slide documenta una función muy cómoda y moderna que vale la pena destacar.
+}
+\end{frame}
+
+\section{Uso básico del visor}
+\sectioncard{2. Uso básico del visor}{Cómo trabajar con la interfaz durante una exposición}
+
+% =================================================
+% Interfaz principal
+% =================================================
+\begin{frame}{Interfaz principal}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.56\textwidth}
+\imgplaceholder{presenter-view.png}{Ventana principal del presentador con PDF cargado, paneles y barra inferior.}
+
+\column{0.40\textwidth}
+\begin{block}{Elementos principales}
+\begin{itemize}
+  \item panel principal (filmina actual);
+  \item paneles auxiliares;
+  \item barra inferior de estado;
+  \item herramientas activas;
+  \item cronómetro y controles.
+\end{itemize}
+\end{block}
+
+\begin{exampleblock}{Idea clave}
+El presentador ve múltiples elementos, pero el público solo ve la filmina.
+\end{exampleblock}
+\end{columns}
+
+\note{
+Esta es la vista más importante del sistema. Aquí el usuario debe entender la diferencia entre lo que él ve y lo que ve el público.
+}
+\end{frame}
+
+% =================================================
+% Barra de herramientas
+% =================================================
+\begin{frame}{Barra de herramientas}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.56\textwidth}
+\imgplaceholder{toolbar.png}{Barra superior con botones de control y herramientas del visor.}
+
+\column{0.40\textwidth}
+\begin{block}{Elementos comunes}
+\begin{itemize}
+  \item abrir PDF;
+  \item navegación básica;
+  \item modos de interacción;
+  \item acceso rápido a funciones clave.
+\end{itemize}
+\end{block}
+
+\begin{exampleblock}{Idea clave}
+La barra concentra las acciones más usadas durante la presentación.
+\end{exampleblock}
+\end{columns}
+
+\note{
+Aquí puedes explicar cada botón rápidamente. No entrar a detalle, eso va en la sección de herramientas.
+}
+\end{frame}
+
+% =================================================
+% Distribución de paneles
+% =================================================
+\begin{frame}{Distribución de paneles}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.58\textwidth}
+\begin{block}{Distribución recomendada}
+\begin{itemize}
+  \item panel grande: filmina actual;
+  \item panel superior derecho: siguiente;
+  \item panel medio derecho: notas actuales;
+  \item panel inferior derecho: notas siguientes.
+\end{itemize}
+\end{block}
+
+\begin{exampleblock}{Flexibilidad}
+Cada panel puede configurarse según las preferencias del expositor.
+\end{exampleblock}
+
+\column{0.38\textwidth}
+\dashboardcard{Consejo}{Mantén una distribución consistente entre presentaciones.}{Reduce errores y mejora la fluidez al exponer.}
+\end{columns}
+
+\note{
+No es obligatorio este layout, pero sí es el más natural.
+}
+\end{frame}
+
+% =================================================
+% Etiquetas
+% =================================================
+\begin{frame}{Etiquetas de panel}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.56\textwidth}
+\imgplaceholder{presenter-labels.png}{Paneles con etiquetas visibles para identificar rápidamente su contenido.}
+
+\column{0.40\textwidth}
+\begin{block}{Utilidad}
+\begin{itemize}
+  \item identificar cada panel;
+  \item validar configuración;
+  \item evitar errores antes de exponer.
+\end{itemize}
+\end{block}
+
+\begin{alertblock}{Recomendación}
+Activa las etiquetas al inicio y desactívalas antes de presentar.
+\end{alertblock}
+\end{columns}
+
+\note{
+Muy útil durante pruebas. No tanto durante exposición real.
+}
+\end{frame}
+
+% =================================================
+% Abrir PDF (visual)
+% =================================================
+\begin{frame}{Abrir un PDF}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.56\textwidth}
+\imgplaceholder{open-pdf.png}{Captura de la aplicación con un PDF recién abierto.}
+
+\column{0.40\textwidth}
+\begin{block}{Qué ocurre al abrir}
+\begin{itemize}
+  \item se carga el documento;
+  \item se asignan paneles automáticamente;
+  \item se detectan notes si existen;
+  \item se habilita navegación.
+\end{itemize}
+\end{block}
+
+\begin{alertblock}{Importante}
+Verifica si el PDF fue interpretado correctamente (con o sin notes).
+\end{alertblock}
+\end{columns}
+
+\note{
+Este slide conecta la teoría con la acción.
+}
+\end{frame}
+
+% =================================================
+% Navegación conceptual
+% =================================================
+\begin{frame}{Navegación básica}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.58\textwidth}
+\begin{itemize}
+  \item avanzar y retroceder entre páginas;
+  \item revisar la siguiente filmina;
+  \item saltar al inicio o final;
+  \item mantener ritmo de exposición.
+\end{itemize}
+
+\begin{block}{Importancia}
+La navegación debe ser \bluebf{rápida, natural y sin distracciones}.
+\end{block}
+
+\column{0.38\textwidth}
+\dashboardcard{Buena práctica}{Ensaya navegación con el PDF real.}{No improvises el ritmo durante la presentación.}
+\end{columns}
+
+\note{
+Aquí todavía no metemos atajos. Eso va en la siguiente sección.
+}
+\end{frame}
+
+% =================================================
+% Panel context menu
+% =================================================
+\begin{frame}{Configuración de paneles}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.56\textwidth}
+\imgplaceholder{panel-context-menu.png}{Menú contextual para cambiar el contenido de cada panel.}
+
+\column{0.40\textwidth}
+\begin{block}{Opciones típicas}
+\begin{itemize}
+  \item filmina actual;
+  \item siguiente;
+  \item notas actuales;
+  \item notas siguientes;
+  \item vistas auxiliares.
+\end{itemize}
+\end{block}
+\end{columns}
+
+\note{
+Aquí empieza el poder real del sistema: personalización.
+}
+\end{frame}
+
+% =================================================
+% Layout persistente
+% =================================================
+\begin{frame}{Persistencia del layout}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.58\textwidth}
+\begin{block}{Archivo de configuración}
+El visor guarda automáticamente la distribución de paneles en un archivo:
+
+\vspace{0.3cm}
+\codebox{layout.json}
+\end{block}
+
+\begin{itemize}
+  \item almacena la configuración de paneles;
+  \item guarda posiciones y contenidos;
+  \item permite restaurar el layout al reiniciar.
+\end{itemize}
+
+\column{0.38\textwidth}
+\dashboardcard{Ventaja}{No necesitas reconfigurar cada vez.}{El entorno de trabajo se mantiene consistente entre sesiones.}
+\end{columns}
+
+\note{
+Este archivo se genera automáticamente después de modificar el layout.
+}
+\end{frame}
+
+\begin{frame}{Ubicación de layout.json}
+\begin{block}{Ruta típica}
+El archivo se crea en el directorio de trabajo del usuario o en la carpeta del proyecto:
+
+\vspace{0.3cm}
+\codebox{./layout.json}
+\end{block}
+
+\begin{itemize}
+  \item se genera automáticamente;
+  \item se sobrescribe al cambiar el layout;
+  \item puede eliminarse para reiniciar la configuración.
+\end{itemize}
+
+\begin{alertblock}{Consejo}
+Si algo se rompe visualmente, eliminar este archivo puede restaurar el comportamiento por defecto.
+\end{alertblock}
+
+\note{
+Muy útil para debugging.
+}
+\end{frame}
+
+% =================================================
+% Panel activo
+% =================================================
+\begin{frame}{Selección de panel}
+\begin{block}{Panel activo}
+El sistema permite trabajar con un \bluebf{panel seleccionado} para aplicar acciones específicas.
+\end{block}
+
+\begin{itemize}
+  \item cambiar contenido de un panel;
+  \item ajustar layout;
+  \item trabajar con teclado de forma precisa.
+\end{itemize}
+
+\begin{exampleblock}{Ventaja}
+Permite una configuración avanzada sin depender del mouse.
+\end{exampleblock}
+
+\note{
+Esto conecta directo con la sección de atajos.
+}
+\end{frame}
+
+% =================================================
+% Proyector
+% =================================================
+\begin{frame}{Control del proyector}
+\begin{block}{Concepto clave}
+El presentador y la audiencia ven cosas diferentes:
+\end{block}
+
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.48\textwidth}
+\imgplaceholder{open-pdf.png}{Configuración con dos pantallas.}
+
+\column{0.48\textwidth}
+\imgplaceholder{projector-view.png}{Salida del proyector (lo que ve el público).}
+\end{columns}
+
+\begin{alertblock}{Importante}
+El público nunca debe ver notas ni paneles auxiliares.
+\end{alertblock}
+
+\note{
+Este slide vende el valor principal del proyecto.
+}
+\end{frame}
+
+\section{Teclas y herramientas}
+\sectioncard{3. Teclas y herramientas}{Control total durante la presentación}
+
+% =================================================
+% Navegación
+% =================================================
+\begin{frame}{Navegación con teclado}
+\shortcutline{Avanzar}{\kbd{Right}\ \kbd{Space}\ \kbd{Down}\ \kbd{PageDown}}
+\shortcutline{Retroceder}{\kbd{Left}\ \kbd{Backspace}\ \kbd{Up}\ \kbd{PageUp}}
+\shortcutline{Inicio y final}{\kbd{Home}\ \kbd{End}}
+
+\note{
+Este es el mínimo indispensable para controlar una presentación sin mouse.
+}
+\end{frame}
+
+% =================================================
+% Tipos de panel
+% =================================================
+\begin{frame}{Tipos de panel}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.56\textwidth}
+\imgplaceholder{presenter-labels.png}{Ejemplo de los distintos tipos de panel disponibles.}
+
+\column{0.40\textwidth}
+\begin{block}{Paneles disponibles}
+\begin{itemize}
+  \item filmina actual;
+  \item siguiente filmina;
+  \item notas actuales;
+  \item notas siguientes.
+\end{itemize}
+\end{block}
+
+\begin{exampleblock}{Idea clave}
+Cada panel puede mostrar contenido diferente al mismo tiempo.
+\end{exampleblock}
+\end{columns}
+
+\note{
+Aquí introduces mentalmente el concepto de tipos de panel.
+}
+\end{frame}
+
+% =================================================
+% Paneles duplicados
+% =================================================
+\begin{frame}{Uso de paneles duplicados}
+\begin{block}{Comportamiento}
+El visor permite asignar el mismo tipo de contenido a múltiples paneles.
+\end{block}
+
+\begin{itemize}
+  \item ver varias copias de la filmina actual;
+  \item mostrar notes en más de un panel;
+  \item crear layouts personalizados;
+  \item adaptar el entorno al estilo del expositor.
+\end{itemize}
+
+\begin{exampleblock}{Ejemplo}
+Dos paneles pueden mostrar la filmina actual mientras otros muestran notes.
+\end{exampleblock}
+
+\note{
+Esto no es común en todos los visores, es una ventaja fuerte.
+}
+\end{frame}
+
+% =================================================
+% Selección de panel
+% =================================================
+\begin{frame}{Selección de panel}
+\shortcutline{Seleccionar panel}{\kbd{Ctrl/Cmd+1}\ \kbd{Ctrl/Cmd+2}\ \kbd{Ctrl/Cmd+3}\ \kbd{Ctrl/Cmd+4}}
+
+\begin{block}{Panel activo}
+Permite trabajar sobre un panel específico sin usar el mouse.
+\end{block}
+
+\begin{itemize}
+  \item seleccionar rápidamente un panel;
+  \item cambiar su contenido;
+  \item configurar layout con precisión.
+\end{itemize}
+
+\note{
+Esto conecta con flujo avanzado sin mouse.
+}
+\end{frame}
+
+% =================================================
+% Asignación de contenido
+% =================================================
+\begin{frame}{Asignar contenido a un panel}
+\shortcutline{Asignar contenido}{\kbd{Alt/Option+1}\ \kbd{Alt/Option+2}\ \kbd{Alt/Option+3}\ \kbd{Alt/Option+4}}
+
+\begin{block}{Qué hace}
+Permite cambiar el tipo de contenido del panel seleccionado.
+\end{block}
+
+\begin{itemize}
+  \item cambiar entre filmina, siguiente y notes;
+  \item configurar layout rápidamente;
+  \item evitar uso de menú contextual.
+\end{itemize}
+
+\begin{exampleblock}{Flujo típico}
+Seleccionar panel $\rightarrow$ asignar contenido.
+\end{exampleblock}
+
+\note{
+Este es el punto donde el sistema se vuelve realmente potente.
+}
+\end{frame}
+
+% =================================================
+% Personalización
+% =================================================
+\begin{frame}{Personalización del layout}
+\shortcutline{Modo customize}{\kbd{Shift+C}}
+\shortcutline{Mostrar etiquetas}{\kbd{L}}
+
+\begin{block}{Qué permite}
+\begin{itemize}
+  \item reorganizar paneles;
+  \item visualizar etiquetas;
+  \item ajustar el entorno de trabajo.
+\end{itemize}
+\end{block}
+
+\begin{alertblock}{Recomendación}
+Configura el layout antes de la presentación, no durante.
+\end{alertblock}
+
+\note{
+Esto conecta con layout.json.
+}
+\end{frame}
+
+% =================================================
+% Modos principales
+% =================================================
+\begin{frame}{Modos principales}
+\shortcutline{Cambiar de modo}{\kbd{1} normal \hspace{0.4cm} \kbd{2} pointer \hspace{0.4cm} \kbd{3} pen \hspace{0.4cm} \kbd{4} eraser \hspace{0.4cm} \kbd{5} spotlight}
+
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.56\textwidth}
+\begin{block}{Qué hace cada modo}
+\begin{itemize}
+  \item \textbf{Normal}: navegación general.
+  \item \textbf{Pointer}: señalar elementos.
+  \item \textbf{Pen}: dibujar.
+  \item \textbf{Eraser}: borrar trazos.
+  \item \textbf{Spotlight}: enfocar zona.
+\end{itemize}
+\end{block}
+
+\column{0.40\textwidth}
+\begin{exampleblock}{Idea clave}
+Estos modos definen la interacción en tiempo real.
+\end{exampleblock}
+\end{columns}
+
+\note{
+Memorizar 1-5 es clave.
+}
+\end{frame}
+
+% =================================================
+% Pointer
+% =================================================
+\begin{frame}{Uso del puntero}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.56\textwidth}
+\imgplaceholder{pointer.png}{Uso del puntero sobre la filmina.}
+
+\column{0.40\textwidth}
+\begin{block}{Para qué sirve}
+\begin{itemize}
+  \item señalar elementos;
+  \item guiar atención;
+  \item enfatizar.
+\end{itemize}
+\end{block}
+
+\begin{alertblock}{Evitar}
+Movimiento constante sin intención.
+\end{alertblock}
+\end{columns}
+\end{frame}
+
+% =================================================
+% Pen
+% =================================================
+\begin{frame}{Dibujo sobre la presentación}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.56\textwidth}
+\imgplaceholder{drawing-tools.png}{Dibujo activo sobre la filmina.}
+
+\column{0.40\textwidth}
+\begin{block}{Aplicaciones}
+\begin{itemize}
+  \item subrayar;
+  \item explicar;
+  \item resolver en vivo.
+\end{itemize}
+\end{block}
+
+\begin{exampleblock}{Ajuste de tamaño}
+Con \kbd{+} y \kbd{-} se puede aumentar o disminuir el grosor del trazo del \textbf{pen}.
+\end{exampleblock}
+\end{columns}
+
+\shortcutline{Control}{\kbd{3} pen \hspace{0.4cm} \kbd{+/-} tamaño \hspace{0.4cm} \kbd{C} limpiar \hspace{0.4cm} \kbd{D} mostrar/ocultar}
+\end{frame}
+
+% =================================================
+% Eraser
+% =================================================
+\begin{frame}{Uso del borrador}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.56\textwidth}
+\imgplaceholder{eraser.png}{Uso del borrador sobre trazos.}
+
+\column{0.40\textwidth}
+\begin{block}{Qué hace}
+\begin{itemize}
+  \item elimina trazos;
+  \item permite correcciones;
+  \item limpia zonas específicas.
+\end{itemize}
+\end{block}
+
+\begin{alertblock}{Diferencia}
+\textbf{Eraser} borra parcialmente.  
+\textbf{\kbd{C}} limpia todo.
+\end{alertblock}
+
+\begin{exampleblock}{Ajuste de tamaño}
+Con \kbd{+} y \kbd{-} también puede ajustarse el tamaño del \textbf{eraser}.
+\end{exampleblock}
+\end{columns}
+
+\shortcutline{Modo}{\kbd{4} eraser \hspace{0.6cm} \kbd{+/-} tamaño}
+\end{frame}
+
+% =================================================
+% Spotlight
+% =================================================
+\begin{frame}{Spotlight}
+\begin{block}{Concepto}
+Enfoca una zona y oscurece el resto.
+\end{block}
+
+\begin{itemize}
+  \item ideal para explicar;
+  \item guía la atención;
+  \item mejora claridad visual.
+\end{itemize}
+
+\begin{alertblock}{Uso}
+Aplicar solo cuando sea necesario.
+\end{alertblock}
+\end{frame}
+
+% =================================================
+% Zoom
+% =================================================
+\begin{frame}{Selección y zoom}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.56\textwidth}
+\imgplaceholder{zoom-selection.png}{Selección para zoom.}
+
+\column{0.40\textwidth}
+\begin{block}{Flujo}
+\begin{itemize}
+  \item seleccionar;
+  \item aplicar zoom;
+  \item salir con \kbd{Esc}.
+\end{itemize}
+\end{block}
+\end{columns}
+
+\shortcutline{Zoom}{Seleccionar \hspace{0.4cm} \kbd{Z} aplicar \hspace{0.4cm} \kbd{Esc}}
+\end{frame}
+
+% =================================================
+% Cronómetro
+% =================================================
+\begin{frame}{Cronómetro}
+\shortcutline{Control}{\kbd{T} iniciar/pausar \hspace{0.8cm} \kbd{Shift+T} reiniciar}
+
+\begin{itemize}
+  \item controlar tiempo;
+  \item ajustar ritmo;
+  \item evitar excederse.
+\end{itemize}
+
+\begin{exampleblock}{Consejo}
+Ensayar con cronómetro activo.
+\end{exampleblock}
+\end{frame}
+
+% =================================================
+% Proyector
+% =================================================
+\begin{frame}{Control del proyector}
+\shortcutline{Black}{\kbd{B}}
+\shortcutline{Freeze}{\kbd{F}}
+
+\begin{itemize}
+  \item ocultar pantalla;
+  \item congelar imagen;
+  \item controlar atención.
+\end{itemize}
+\end{frame}
+
+% =================================================
+% Interfaz general
+% =================================================
+\begin{frame}{Interfaz y control}
+\shortcutline{Ayuda}{\kbd{H}}
+\shortcutline{Fullscreen}{\kbd{W}}
+\shortcutline{Salir}{\kbd{Esc}}
+\shortcutline{Pnotes}{\kbd{P}}
+\end{frame}
+
+% =================================================
+% Resumen
+% =================================================
+\begin{frame}{Resumen de atajos clave}
+\begin{block}{Memoriza esto}
+\centering
+
+\kbd{← →} \hspace{0.35cm}
+\kbd{1-5} \hspace{0.35cm}
+\kbd{+/-} \hspace{0.35cm}
+\kbd{T} \hspace{0.35cm}
+\kbd{B} \hspace{0.35cm}
+\kbd{F} \hspace{0.35cm}
+\kbd{Esc}
+
+\end{block}
+
+\begin{exampleblock}{Idea final}
+Puedes presentar completamente sin usar el mouse.
+\end{exampleblock}
+\end{frame}
+
+\section{Preparación del PDF}
+\sectioncard{4. Preparación del PDF}{Configuración correcta desde LaTeX}
+
+% =================================================
+% Introducción
+% =================================================
+\begin{frame}{Preparación desde LaTeX}
+\begin{block}{Idea principal}
+Para aprovechar completamente Presenter Viewer, el PDF debe prepararse correctamente desde LaTeX.
+\end{block}
+
+\begin{itemize}
+  \item uso de Beamer;
+  \item separación entre contenido y notas;
+  \item compatibilidad con notes y pnotes;
+  \item exportación adecuada del PDF.
+\end{itemize}
+
+\begin{exampleblock}{Clave}
+El visor funciona mejor cuando el PDF fue diseñado pensando en el presentador.
+\end{exampleblock}
+
+\note{
+Aquí introduces que no es solo abrir cualquier PDF.
+}
+\end{frame}
+
+% =================================================
+% Cabecera mínima
+% =================================================
+\begin{frame}[fragile]{Configuración mínima recomendada}
+\begin{block}{Cabecera esencial}
+\begin{lstlisting}
+\documentclass[aspectratio=169]{beamer}
+\usepackage{pdfcomment}
+\setbeameroption{show notes on second screen=left}
+\end{lstlisting}
+\end{block}
+
+\begin{itemize}
+  \item activa exportación de notes;
+  \item genera layout compatible con visor;
+  \item separa slide y notas en el PDF.
+\end{itemize}
+
+\begin{alertblock}{Importante}
+Sin esta configuración, las notes no aparecerán como panel separado.
+\end{alertblock}
+
+\note{
+Esto es obligatorio para aprovechar notes.
+}
+\end{frame}
+
+% =================================================
+% Explicación visual
+% =================================================
+\begin{frame}{¿Qué hace esta configuración?}
+\begin{block}{Resultado en el PDF}
+\begin{itemize}
+  \item lado izquierdo: notes;
+  \item lado derecho: filmina;
+  \item layout ancho tipo presentador.
+\end{itemize}
+\end{block}
+
+\begin{exampleblock}{Interpretación}
+El visor puede separar automáticamente ambas partes.
+\end{exampleblock}
+
+\note{
+Esto conecta directamente con cómo el visor interpreta el PDF.
+}
+\end{frame}
+
+% =================================================
+% Uso de note
+% =================================================
+\begin{frame}{Uso de \texttt{\textbackslash note\{\}}}
+\begin{block}{Ejemplo}
+\codebox{\textbackslash begin\{frame\}\{Mi filmina\}\\
+Contenido visible para el publico.\\
+\textbackslash note\{Esta nota solo la ve el presentador.\}}
+\end{block}
+
+\begin{itemize}
+  \item no se muestra al público;
+  \item aparece en panel de notes;
+  \item sirve como guía del expositor.
+\end{itemize}
+
+\begin{exampleblock}{Ventaja}
+Permite tener apoyo sin saturar la diapositiva.
+\end{exampleblock}
+
+\note{
+Este es el mecanismo principal.
+}
+\end{frame}
+
+% =================================================
+% Ejemplo conceptual
+% =================================================
+\begin{frame}{Ejemplo con notes}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.56\textwidth}
+\begin{block}{Filmina}
+Pregunta: \bluebf{¿Por qué usar un visor de presentador?}
+\end{block}
+
+\begin{itemize}
+  \item control del tiempo;
+  \item notas privadas;
+  \item herramientas visuales;
+  \item mejor flujo de exposición.
+\end{itemize}
+
+\column{0.40\textwidth}
+\begin{exampleblock}{Qué sucede}
+El público ve esta filmina, pero el expositor ve también las notes.
+\end{exampleblock}
+\end{columns}
+
+\note{
+Respuesta sugerida: mejora control, claridad y ritmo.
+}
+\end{frame}
+
+% =================================================
+% pnote macro
+% =================================================
+\begin{frame}[fragile]{Agregar \texttt{\textbackslash pnote}}
+\begin{block}{Definición}
+\begin{lstlisting}
+\newcommand{\pnote}[1]{%
+  \pdfcomment[
+    icon=Note,
+    open=false,
+    subject={Presenter Note},
+    color={1 1 0},
+    opacity=0
+  ]{#1}%
+}
+\end{lstlisting}
+\end{block}
+
+\begin{alertblock}{Importante}
+Debe agregarse en el preámbulo del archivo.
+\end{alertblock}
+
+\note{
+Esto habilita notas embebidas en el PDF.
+}
+\end{frame}
+
+% =================================================
+% Uso de pnote
+% =================================================
+\begin{frame}{Uso de \texttt{\textbackslash pnote\{\}}}
+\begin{block}{Ejemplo}
+\codebox{Explicación importante.\\
+\textbackslash pnote\{Recordar dar ejemplo practico.\}}
+\end{block}
+
+\begin{itemize}
+  \item recordatorios breves;
+  \item notas tácticas;
+  \item apoyo rápido durante exposición.
+\end{itemize}
+
+\begin{exampleblock}{Idea}
+Complementa a \texttt{\textbackslash note}, no lo reemplaza.
+\end{exampleblock}
+
+\note{
+pnote es más ligero y puntual.
+}
+\end{frame}
+
+% =================================================
+% Comparación
+% =================================================
+\begin{frame}{Notes vs Pnotes}
+\begin{table}
+\centering
+\small
+\begin{tabular}{p{3cm} p{4.5cm} p{4.5cm}}
+\toprule
+Método & Ventajas & Uso \\
+\midrule
+\texttt{\textbackslash note} &
+Integración completa con Beamer &
+Notas amplias y estructuradas \\
+\addlinespace
+\texttt{\textbackslash pnote} &
+Ligero y flexible &
+Recordatorios breves \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{exampleblock}{Recomendación}
+Usar ambos en conjunto.
+\end{exampleblock}
+
+\note{
+Esta es la decisión de diseño recomendada.
+}
+\end{frame}
+
+% =================================================
+% PDF sin notes
+% =================================================
+\begin{frame}{PDFs sin panel de notas}
+\begin{alertblock}{Comportamiento esperado}
+Si el PDF no tiene notes, el visor debe mostrar la página completa.
+\end{alertblock}
+
+\begin{itemize}
+  \item no recortar contenido;
+  \item mostrar PDF normal;
+  \item seguir permitiendo pnotes.
+\end{itemize}
+
+\begin{exampleblock}{Importante}
+No todos los PDFs requieren notes.
+\end{exampleblock}
+
+\note{
+Esto es un edge case importante.
+}
+\end{frame}
+
+% =================================================
+% Buenas prácticas
+% =================================================
+\begin{frame}{Buenas prácticas}
+\begin{itemize}
+  \item una idea por diapositiva;
+  \item evitar saturar texto;
+  \item usar notes para apoyo;
+  \item priorizar claridad visual;
+  \item ensayar con el visor.
+\end{itemize}
+
+\begin{alertblock}{Clave}
+Un buen PDF es tan importante como el visor.
+\end{alertblock}
+
+\note{
+Cerrar con enfoque pedagógico.
+}
+\end{frame}
+
+\section{Buenas prácticas}
+\sectioncard{5. Buenas prácticas}{Diseño, preparación y exposición}
+
+% =================================================
+% Diseño
+% =================================================
+\begin{frame}{Buenas prácticas de diseño}
+\begin{itemize}
+  \item una idea principal por diapositiva;
+  \item texto mínimo y bien espaciado;
+  \item usar contraste adecuado;
+  \item priorizar lo visual sobre lo textual;
+  \item evitar saturar la slide.
+\end{itemize}
+
+\begin{exampleblock}{Regla simple}
+Si una diapositiva tiene demasiado texto, probablemente debe dividirse.
+\end{exampleblock}
+
+\note{
+Esto conecta con principios básicos de presentación.
+}
+\end{frame}
+
+% =================================================
+% Uso del visor
+% =================================================
+\begin{frame}{Buenas prácticas con el visor}
+\begin{itemize}
+  \item usar pointer solo cuando sea necesario;
+  \item usar spotlight para guiar la atención;
+  \item evitar cambiar constantemente de modo;
+  \item limpiar dibujos cuando ya no se necesiten;
+  \item mantener consistencia en el layout.
+\end{itemize}
+
+\begin{alertblock}{Clave}
+El visor debe apoyar la exposición, no distraer.
+\end{alertblock}
+
+\note{
+Aquí se aterriza el uso correcto de las herramientas.
+}
+\end{frame}
+
+% =================================================
+% Preparación
+% =================================================
+\begin{frame}{Preparación antes de exponer}
+\begin{itemize}
+  \item ensayar con el PDF final;
+  \item validar notes y pnotes;
+  \item configurar paneles;
+  \item probar herramientas;
+  \item verificar el proyector.
+\end{itemize}
+
+\begin{exampleblock}{Consejo}
+No pruebes cosas nuevas en vivo.
+\end{exampleblock}
+
+\note{
+Esto es experiencia real de exposición.
+}
+\end{frame}
+
+% =================================================
+% Checklist
+% =================================================
+\begin{frame}{Checklist antes de iniciar}
+\begin{block}{Verificación rápida}
+\begin{itemize}
+  \item PDF listo;
+  \item Presenter Viewer abierto;
+  \item paneles configurados;
+  \item proyector funcionando;
+  \item notes visibles correctamente;
+  \item cronómetro listo.
+\end{itemize}
+\end{block}
+
+\begin{alertblock}{Importante}
+Haz esta revisión antes de estar frente al público.
+\end{alertblock}
+
+
+\end{frame}
+
+\section{Flujo recomendado}
+\sectioncard{6. Flujo recomendado}{Desde LaTeX hasta la exposición}
+
+% =================================================
+% Flujo completo
+% =================================================
+\begin{frame}{Flujo completo recomendado}
+\begin{block}{Pipeline de trabajo}
+\centering
+\kbd{LaTeX} \hspace{0.35cm} $\rightarrow$ \hspace{0.35cm}
+\kbd{PDF} \hspace{0.35cm} $\rightarrow$ \hspace{0.35cm}
+\kbd{Presenter Viewer} \hspace{0.35cm} $\rightarrow$ \hspace{0.35cm}
+\kbd{Configurar} \hspace{0.35cm} $\rightarrow$ \hspace{0.35cm}
+\kbd{Presentar}
+\end{block}
+
+\vspace{0.3cm}
+
+\begin{itemize}
+  \item crear la presentación en Beamer;
+  \item exportar a PDF;
+  \item abrir en Presenter Viewer;
+  \item configurar paneles y herramientas;
+  \item realizar la exposición.
+\end{itemize}
+
+\note{
+Este slide resume todo el flujo en una sola vista clara.
+}
+\end{frame}
+
+% =================================================
+% Flujo detallado
+% =================================================
+\begin{frame}{Flujo paso a paso}
+\begin{enumerate}
+    \item crear la presentación en LaTeX (Beamer);
+    \item agregar \texttt{\textbackslash note\{\}} para notas extensas;
+    \item agregar la macro \texttt{\textbackslash pnote\{\}} al preámbulo;
+    \item insertar pnotes donde se necesiten recordatorios rápidos;
+    \item compilar el PDF final;
+    \item abrir el archivo en Presenter Viewer;
+    \item configurar layout y paneles;
+    \item probar herramientas (pointer, pen, zoom, etc.);
+    \item ensayar la presentación completa.
+\end{enumerate}
+
+\begin{alertblock}{Consejo práctico}
+Haz al menos un ensayo completo antes de la presentación real.
+\end{alertblock}
+
+\note{
+Este es el flujo real que deberían seguir los usuarios.
+}
+\end{frame}
+
+% =================================================
+% Errores comunes
+% =================================================
+\begin{frame}{Errores comunes}
+\begin{itemize}
+  \item no probar el PDF antes de exponer;
+  \item depender solo de memoria (sin notes);
+  \item saturar slides con demasiado texto;
+  \item abusar de herramientas visuales;
+  \item no verificar el proyector o segunda pantalla;
+  \item improvisar configuración en vivo.
+\end{itemize}
+
+\begin{alertblock}{Importante}
+La mayoría de errores no son técnicos, son de preparación.
+\end{alertblock}
+
+\note{
+Este slide agrega mucho valor práctico.
+}
+\end{frame}
+
+% =================================================
+% Cierre
+% =================================================
+\begin{frame}{Cierre}
+\begin{block}{Idea principal}
+Presenter Viewer es una herramienta que mejora significativamente la calidad de una exposición cuando se usa correctamente.
+\end{block}
+
+\begin{itemize}
+  \item mejora el control del expositor;
+  \item permite separar contenido público y privado;
+  \item facilita el uso de herramientas visuales;
+  \item ayuda a mantener ritmo y claridad.
+\end{itemize}
+
+\begin{exampleblock}{Clave}
+La herramienta no reemplaza una buena presentación, pero la potencia.
+\end{exampleblock}
+
+\note{
+Cierre conceptual fuerte.
+}
+\end{frame}
+
+% =================================================
+% Referencia
+% =================================================
+\begin{frame}{Referencia de inspiración}
+La organización funcional de esta herramienta toma inspiración de soluciones como \texttt{pdfpc}, especialmente en:
+
+\begin{itemize}
+    \item vista del presentador;
+    \item manejo de notas;
+    \item pointer y spotlight;
+    \item herramientas de dibujo;
+    \item cronómetro;
+    \item control del proyector.
+\end{itemize}
+
+\soft{La intención es ofrecer una versión moderna, extensible y adaptada a flujos actuales.}
+
+\note{
+Esto posiciona el proyecto sin verse como copia.
+}
+\end{frame}
+
+\end{document}

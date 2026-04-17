@@ -5,7 +5,8 @@ from pathlib import Path
 from typing import Literal
 
 import fitz  # PyMuPDF
-from PySide6.QtGui import QImage, QPixmap
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QImage, QPainter, QPixmap
 
 
 RegionName = Literal["full", "slide", "notes"]
@@ -25,7 +26,10 @@ class PdfLoader:
         self._path: Path | None = None
         self._annot_extractor = None
 
-        # 🔥 IMPORTANTE: ahora las notes están a la izquierda
+        # Si el PDF exportó presenter notes en doble panel
+        self.has_presenter_notes_layout: bool = False
+
+        # Si sí hay notes layout, dónde están las notas
         self.notes_side: Literal["right", "left"] = "left"
 
     @property
@@ -54,7 +58,12 @@ class PdfLoader:
         from presenter_viewer.pdf.annotation_extractor import AnnotationExtractor
         self._annot_extractor = AnnotationExtractor(self._doc)
 
-        print("PDF cargado correctamente", flush=True)
+        self.has_presenter_notes_layout = self._detect_presenter_notes_layout()
+
+        print(
+            f"PDF cargado correctamente | notes_layout={self.has_presenter_notes_layout} | notes_side={self.notes_side}",
+            flush=True,
+        )
 
     def close(self) -> None:
         if self._doc is not None:
@@ -62,6 +71,7 @@ class PdfLoader:
         self._doc = None
         self._path = None
         self._annot_extractor = None
+        self.has_presenter_notes_layout = False
 
     def get_pnotes(self, page_index: int) -> list[str]:
         if self._annot_extractor is None:
@@ -84,6 +94,24 @@ class PdfLoader:
 
         page = self._doc[page_index]
         rect = page.rect
+
+        # Si el PDF NO tiene layout de notes:
+        # - full = página completa
+        # - slide = página completa
+        # - notes = vacío
+        if not self.has_presenter_notes_layout and region == "notes":
+            empty = self._build_empty_pixmap(
+                target_width=target_width,
+                target_height=target_height,
+                device_pixel_ratio=device_pixel_ratio,
+            )
+            return RenderedPage(
+                page_index=page_index,
+                width=empty.width(),
+                height=empty.height(),
+                pixmap=empty,
+            )
+
         clip = self._region_clip(rect, region)
 
         clip_width = clip.width
@@ -121,8 +149,74 @@ class PdfLoader:
             pixmap=qt_pixmap,
         )
 
+    def _detect_presenter_notes_layout(self) -> bool:
+        if self._doc is None or len(self._doc) == 0:
+            return False
+
+        # Heurística:
+        # Si la mayoría de páginas son claramente "doble panel" horizontal,
+        # asumimos que es export de presenter notes.
+        checked = min(len(self._doc), 5)
+        wide_pages = 0
+
+        for i in range(checked):
+            page = self._doc[i]
+            rect = page.rect
+            if rect.height <= 0:
+                continue
+
+            aspect = rect.width / rect.height
+
+            # PDFs normales 16:9 suelen andar aprox. 1.78
+            # pero aquí lo que importa es que exportaste notes "en hoja alargada horizontal"
+            # con slide + notes lado a lado.
+            #
+            # Si tus PDFs normales también son widescreen, necesitamos distinguir:
+            # una página normal NO debe cortarse; una con notes suele ser todavía más ancha
+            # o al menos estar pensada para dos regiones funcionales.
+            #
+            # Umbral conservador:
+            if aspect >= 2.2:
+                wide_pages += 1
+
+        return wide_pages >= max(1, checked // 2)
+
+    def _build_empty_pixmap(
+        self,
+        target_width: int | None,
+        target_height: int | None,
+        device_pixel_ratio: float,
+    ) -> QPixmap:
+        logical_w = max(200, target_width or 800)
+        logical_h = max(120, target_height or 450)
+
+        real_w = max(1, int(logical_w * device_pixel_ratio))
+        real_h = max(1, int(logical_h * device_pixel_ratio))
+
+        pixmap = QPixmap(real_w, real_h)
+        pixmap.fill(QColor("#1b1b1b"))
+        pixmap.setDevicePixelRatio(device_pixel_ratio)
+
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
+        painter.setPen(QColor("#6b7280"))
+        painter.drawText(
+            pixmap.rect(),
+            Qt.AlignmentFlag.AlignCenter,
+            "Sin notas",
+        )
+        painter.end()
+
+        return pixmap
+
     def _region_clip(self, rect: fitz.Rect, region: RegionName) -> fitz.Rect:
         if region == "full":
+            return rect
+
+        # Si no hay presenter notes layout:
+        # slide = página completa
+        # notes se maneja antes en render_page_region()
+        if not self.has_presenter_notes_layout:
             return rect
 
         mid_x = rect.x0 + rect.width / 2.0
@@ -130,7 +224,6 @@ class PdfLoader:
         left_rect = fitz.Rect(rect.x0, rect.y0, mid_x, rect.y1)
         right_rect = fitz.Rect(mid_x, rect.y0, rect.x1, rect.y1)
 
-        # 🔥 AJUSTE CLAVE AQUÍ
         if self.notes_side == "right":
             slide_rect = left_rect
             notes_rect = right_rect

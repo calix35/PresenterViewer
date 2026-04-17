@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Callable, Literal
 
 from PySide6.QtCore import QPointF, Qt, QRect, QRectF
-from PySide6.QtGui import QColor, QFont, QMouseEvent, QPainter, QPen, QPixmap
+from PySide6.QtGui import QColor, QFont, QMouseEvent, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import QWidget
 
 
@@ -65,6 +65,13 @@ class SlideView(QWidget):
         # Selección de panel por teclado
         self._panel_selected: bool = False
         self._panel_selected_color: str = "#3b82f6"
+
+        # Estado vacío / empty state
+        self._empty_state_visible: bool = False
+        self._empty_state_title: str = ""
+        self._empty_state_message: str = ""
+        self._empty_state_accent: str = "#60a5fa"
+        self._empty_state_drag_active: bool = False
 
         self.setMouseTracking(True)
 
@@ -211,6 +218,28 @@ class SlideView(QWidget):
         self._panel_selected_color = color
         self.update()
 
+    def set_empty_state(
+        self,
+        visible: bool,
+        title: str = "",
+        message: str = "",
+        accent: str = "#60a5fa",
+        drag_active: bool = False,
+    ) -> None:
+        self._empty_state_visible = visible
+        self._empty_state_title = title
+        self._empty_state_message = message
+        self._empty_state_accent = accent
+        self._empty_state_drag_active = drag_active
+        self.update()
+
+    def clear_empty_state(self) -> None:
+        self._empty_state_visible = False
+        self._empty_state_title = ""
+        self._empty_state_message = ""
+        self._empty_state_drag_active = False
+        self.update()
+
     def clear_overlays(self) -> None:
         self._pointer_enabled = False
         self._pointer_pos_norm = None
@@ -269,6 +298,9 @@ class SlideView(QWidget):
                 self._draw_selection_overlay(painter, target_rectf)
                 self._draw_panel_label(painter, target_rectf)
                 self._draw_panel_selection_border(painter, target_rectf)
+
+        if self._empty_state_visible and self._pixmap is None:
+            self._draw_empty_state(painter)
 
         self._draw_tool_preview(painter)
         self._draw_status_indicators(painter)
@@ -370,8 +402,6 @@ class SlideView(QWidget):
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
-        from PySide6.QtGui import QPainterPath
-
         overlay = QPainterPath()
         overlay.addRect(target_rect)
 
@@ -401,8 +431,6 @@ class SlideView(QWidget):
 
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-
-        from PySide6.QtGui import QPainterPath
 
         outside = QPainterPath()
         outside.addRect(target_rect)
@@ -481,6 +509,84 @@ class SlideView(QWidget):
         main_pen = QPen(QColor(self._panel_selected_color), 3)
         painter.setPen(main_pen)
         painter.drawRoundedRect(border_rect, 12, 12)
+
+        painter.restore()
+
+    def _draw_empty_state(self, painter: QPainter) -> None:
+        panel_rect = QRectF(self.rect())
+        if panel_rect.width() <= 0 or panel_rect.height() <= 0:
+            return
+
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
+
+        card_w = min(max(420.0, panel_rect.width() * 0.62), 760.0)
+        card_h = min(max(210.0, panel_rect.height() * 0.32), 320.0)
+
+        x = panel_rect.x() + (panel_rect.width() - card_w) / 2
+        y = panel_rect.y() + (panel_rect.height() - card_h) / 2
+        card_rect = QRectF(x, y, card_w, card_h)
+
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(10, 16, 25, 215))
+        painter.drawRoundedRect(card_rect, 22, 22)
+
+        border_color = QColor("#93c5fd" if self._empty_state_drag_active else "#64748b")
+        border_color.setAlpha(170 if self._empty_state_drag_active else 110)
+        painter.setPen(QPen(border_color, 2))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRoundedRect(card_rect.adjusted(1, 1, -1, -1), 22, 22)
+
+        accent_color = QColor(self._empty_state_accent)
+        accent_rect = QRectF(card_rect.x() + 18, card_rect.y() + 18, 8, card_rect.height() - 36)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(accent_color)
+        painter.drawRoundedRect(accent_rect, 4, 4)
+
+        content_rect = card_rect.adjusted(44, 24, -24, -24)
+
+        icon_center = QPointF(content_rect.x() + 28, content_rect.y() + 30)
+        icon_r = 15.0
+        painter.setBrush(QColor(accent_color.red(), accent_color.green(), accent_color.blue(), 55))
+        painter.drawEllipse(icon_center, icon_r + 7, icon_r + 7)
+        painter.setBrush(accent_color)
+        painter.drawEllipse(icon_center, icon_r, icon_r)
+
+        painter.setPen(QColor("#ffffff"))
+        icon_font = QFont()
+        icon_font.setPointSize(12)
+        icon_font.setBold(True)
+        painter.setFont(icon_font)
+        painter.drawText(
+            QRectF(icon_center.x() - 12, icon_center.y() - 11, 24, 22),
+            Qt.AlignmentFlag.AlignCenter,
+            "PDF",
+        )
+
+        title_rect = QRectF(content_rect.x() + 58, content_rect.y(), content_rect.width() - 58, 42)
+        title_font = QFont()
+        title_font.setPointSize(16)
+        title_font.setBold(True)
+        painter.setFont(title_font)
+        painter.setPen(QColor("#f8fafc"))
+        painter.drawText(
+            title_rect,
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+            self._empty_state_title,
+        )
+
+        msg_rect = QRectF(content_rect.x(), content_rect.y() + 56, content_rect.width(), content_rect.height() - 56)
+        msg_font = QFont()
+        msg_font.setPointSize(11)
+        msg_font.setBold(False)
+        painter.setFont(msg_font)
+        painter.setPen(QColor("#d1d5db"))
+        painter.drawText(
+            msg_rect,
+            Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap,
+            self._empty_state_message,
+        )
 
         painter.restore()
 

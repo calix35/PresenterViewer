@@ -5,7 +5,7 @@ from copy import deepcopy
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QAction, QCursor, QKeyEvent, QKeySequence, QShortcut
+from PySide6.QtGui import QAction, QCursor, QDragEnterEvent, QDropEvent, QKeyEvent, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -55,6 +55,8 @@ class PresenterWindow(QMainWindow):
 
         self.show_help_bar = False
         self.show_panel_role_labels = True
+
+        self.drag_pdf_hover = False
 
         self.projector_window: ProjectorWindow | None = None
 
@@ -160,7 +162,7 @@ class PresenterWindow(QMainWindow):
 
         self.main_splitter: QSplitter | None = None
         self.right_splitter: QSplitter | None = None
-        self.outer_splitter: QSplitter | None = None
+        self.outer_splitter: QSplitter | None = None        
 
         self._build_ui()
         self._configure_active_slide_view()
@@ -173,7 +175,9 @@ class PresenterWindow(QMainWindow):
         self._update_timer_label()
         self.clock_timer.start(1000)
 
-        QTimer.singleShot(0, self._apply_layout_to_splitters)
+        self.setAcceptDrops(True)
+
+        QTimer.singleShot(0, self._apply_layout_to_splitters)        
 
     def _build_help_text(self) -> str:
         return (
@@ -647,6 +651,9 @@ class PresenterWindow(QMainWindow):
         QShortcut(QKeySequence("Ctrl+R"), self, activated=self.refresh_screens)
         QShortcut(QKeySequence("Meta+R"), self, activated=self.refresh_screens)
 
+        QShortcut(QKeySequence("Ctrl+O"), self, activated=self.open_pdf_dialog)
+        QShortcut(QKeySequence("Meta+O"), self, activated=self.open_pdf_dialog)
+
         QShortcut(QKeySequence("Ctrl+Q"), self, activated=QApplication.quit)
         QShortcut(QKeySequence("Meta+Q"), self, activated=QApplication.quit)
 
@@ -729,6 +736,85 @@ class PresenterWindow(QMainWindow):
         if file_path:
             self.load_pdf(Path(file_path))
 
+    def _extract_pdf_path_from_urls(self, urls) -> Path | None:
+        for url in urls:
+            if not url.isLocalFile():
+                continue
+
+            path = Path(url.toLocalFile())
+            if path.is_file() and path.suffix.lower() == ".pdf":
+                return path
+
+        return None
+
+
+    def _update_empty_state_overlay(self) -> None:
+        active_view = self._get_active_slide_view()
+
+        # limpiar todos los paneles primero
+        for panel_key in PANEL_KEYS:
+            self._get_panel_widget(panel_key).clear_empty_state()
+
+        if self.pdf_loader.is_loaded:
+            return
+
+        title = "Presenter Viewer"
+
+        if self.drag_pdf_hover:
+            message = "Suelta aquí tu archivo PDF"
+        else:
+            message = (
+                "No hay ningún PDF cargado\n\n"
+                "Presiona Ctrl+O / Cmd+O para abrir un PDF\n"
+                "o arrastra un archivo .pdf sobre la ventana"
+            )
+
+        active_view.set_empty_state(
+            visible=True,
+            title=title,
+            message=message,
+            accent="#60a5fa",
+            drag_active=self.drag_pdf_hover,
+        )
+
+
+    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
+        path = self._extract_pdf_path_from_urls(event.mimeData().urls())
+        if path is not None:
+            event.acceptProposedAction()
+            self.drag_pdf_hover = True
+            self._update_empty_state_overlay()
+            return
+
+        event.ignore()
+
+
+    def dragMoveEvent(self, event: QDragEnterEvent) -> None:
+        path = self._extract_pdf_path_from_urls(event.mimeData().urls())
+        if path is not None:
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+
+    def dragLeaveEvent(self, event) -> None:
+        self.drag_pdf_hover = False
+        self._update_empty_state_overlay()
+        super().dragLeaveEvent(event)
+
+
+    def dropEvent(self, event: QDropEvent) -> None:
+        path = self._extract_pdf_path_from_urls(event.mimeData().urls())
+        self.drag_pdf_hover = False
+
+        if path is None:
+            self._update_empty_state_overlay()
+            event.ignore()
+            return
+
+        event.acceptProposedAction()
+        self.load_pdf(path)
+
     def load_pdf(self, pdf_path: Path) -> None:
         try:
             self.pdf_loader.load(pdf_path)
@@ -737,6 +823,7 @@ class PresenterWindow(QMainWindow):
             self.current_stroke = None
             self._operation_snapshot_taken = False
             self.overlay_pointer_pos_norm = None
+            self.drag_pdf_hover = False
             self._clear_selection_state()
             self.control_zoom_viewport_norm = None
             self.projector_zoom_viewport_norm = None
@@ -1183,8 +1270,11 @@ class PresenterWindow(QMainWindow):
         if self.main_splitter is not None and self.right_splitter is not None and self.outer_splitter is not None:
             if not self._applying_layout:
                 self._apply_layout_to_splitters()
+
         if self.pdf_loader.is_loaded:
             self._render_views()
+        else:
+            self._update_empty_state_overlay()
 
     def _apply_layout_to_splitters(self) -> None:
         if self.main_splitter is None or self.right_splitter is None or self.outer_splitter is None:
@@ -1568,7 +1658,10 @@ class PresenterWindow(QMainWindow):
                 self._clear_view_overlays(view)
                 view.clear_panel_label()
                 view.set_panel_selected(False)
+                view.clear_empty_state()
+
             self.pnote_bar.setText("pnote: sin contenido")
+            self._update_empty_state_overlay()
             return
 
         self._configure_active_slide_view()
@@ -1629,6 +1722,7 @@ class PresenterWindow(QMainWindow):
         self._update_panel_role_labels()
         self._update_current_slide_indicators()
         self._update_tool_preview()
+        self._update_empty_state_overlay()
 
     def _update_current_slide_indicators(self) -> None:
         for panel_key in PANEL_KEYS:
