@@ -837,8 +837,6 @@ Si deseas colaborar, reportar errores o proponer mejoras:
 
 ## Licencia
 
-## Licencia
-
 Este proyecto está bajo la licencia MIT.
 
 Puedes usar, modificar y distribuir este software libremente, siempre que se incluya la licencia original.
